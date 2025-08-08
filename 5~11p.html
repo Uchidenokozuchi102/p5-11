@@ -1,0 +1,839 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>インタラクティブ英文法ドリル - 統合版</title>
+    <style>
+        /* 基本スタイル */
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; display: flex; flex-direction: column; align-items: center; padding: 10px; background-color: #f0f4f8; min-height: 100vh; margin: 0; box-sizing: border-box; }
+        .container { background-color: #fff; padding: 15px 20px 20px; border-radius: 12px; box-shadow: 0 8px 20px rgba(0,0,0,0.12); width: 100%; max-width: 600px; position: relative; }
+        
+        /* フィルター */
+        .main-filters-container { display: flex; flex-direction: column; gap: 15px; margin-bottom: 15px; margin-top: 10px; }
+        /* ★アコーディオン用スタイル */
+        .accordion-header { background-color: #f8f9fa; border: 1px solid #dee2e6; border-radius: 8px; padding: 10px 15px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: background-color 0.2s; }
+        .accordion-header:hover { background-color: #e9ecef; }
+        .accordion-header.active { background-color: #007bff; color: white; border-color: #007bff; }
+        .accordion-title { font-weight: bold; font-size: 0.9em; }
+        .accordion-icon::after { content: '▼'; font-size: 0.7em; transition: transform 0.3s; display: inline-block; }
+        .accordion-header.active .accordion-icon::after { transform: rotate(180deg); }
+        .accordion-panel { max-height: 0; overflow: hidden; transition: max-height 0.4s ease-out; background-color: #fff; padding: 0 10px;}
+        .accordion-panel.show { padding: 15px 10px 5px; }
+        
+        .group-filters, .status-filters { text-align: center; display: flex; justify-content: center; flex-wrap: wrap; gap: 8px; }
+        .group-filters button, .status-filters button { padding: 6px 12px; font-size: 0.8em; border: 1px solid #ccc; border-radius: 16px; cursor: pointer; background-color: #f8f9fa; transition: all 0.2s; min-width: 70px; display: flex; align-items: center; justify-content: center; }
+        .group-filters button.active-group-filter, .status-filters button.active-status-filter { background-color: #007bff; color: white; border-color: #007bff; font-weight: bold; }
+        .filter-title { font-size: 0.75em; color: #666; margin-bottom: 8px; text-align: center; font-weight: bold; }
+        .display-mode-switch { display: flex; align-items: center; justify-content: flex-end; margin-bottom: 10px; font-size: 0.85em; color: #555; }
+        .question-count { font-size: 0.9em; color: #888; margin-left: 4px; font-weight: normal; }
+        .active-group-filter .question-count, .active-status-filter .question-count { color: #e0e0e0; }
+
+        /* カード共通スタイル */
+        .card { border: 1px solid #d1d9e0; border-radius: 10px; padding: 15px; min-height: 240px; display: flex; flex-direction: column; justify-content: space-between; margin-bottom: 15px; }
+        .instruction-text { font-size: 0.9em; color: #6c757d; font-weight: normal; margin-bottom: 15px; text-align: center; }
+        .card-content { flex-grow: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; width: 100%;}
+        .feedback-area { margin-top: 10px; font-size: 1em; font-weight: bold; min-height: 1.2em; text-align: center; padding: 10px; border-radius: 8px; }
+        .feedback-area.correct { color: #155724; background-color: #d4edda; border: 1px solid #c3e6cb; }
+        .feedback-area.incorrect { color: #721c24; background-color: #f8d7da; border: 1px solid #f5c6cb; }
+        .feedback-area .correct-answer-display { font-size: 0.9em; font-weight: normal; color: #555; margin-top: 5px; }
+        .source-display { text-align: right; font-size: 0.75em; color: #888; margin-top: 10px; width: 100%; }
+
+        /* 問題文・ヒントなど */
+        .sentence-container { font-size: 1.4em; font-weight: 500; color: #2c3e50; text-align: center; line-height: 1.7; margin-bottom: 10px; }
+        .japanese-translation { font-size: 0.9em; color: #555; margin-top: 8px; text-align: center; margin-bottom: 10px;}
+        .hint-text { font-size: 0.9em; color: #808080; margin-left: 15px; font-style: normal; }
+
+        /* タイプ別スタイル: RevealBlank, Rewrite, Translate (クリックで答え表示) */
+        .clickable-card { cursor: pointer; }
+        .clickable-card.showing-answer { background-color: #e9f5ff; }
+        .blank-space { color: #007bff; font-weight: bold; letter-spacing: 0.2em; }
+        .clickable-card.showing-answer .blank-space { letter-spacing: normal; }
+        .card-front-content { font-size: 1.4em; font-weight: 500; color: #2c3e50; text-align: center; line-height: 1.7; margin-bottom: 10px; }
+        .card-answer-area { text-align: center; }
+
+        /* タイプ別スタイル: Choice (選択問題) */
+        .choice-option { cursor: pointer; color: #007bff; font-weight: bold; transition: color 0.2s; }
+        .choice-option.answered { cursor: default; }
+        .choice-option.correct { color: #155724; text-decoration: underline; }
+        .choice-option.incorrect { color: #721c24; text-decoration: line-through; }
+
+        /* タイプ別スタイル: Sort (並び替え問題) */
+        #sort-options-container, #sort-answer-container { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; padding: 10px; min-height: 40px; width: 100%; box-sizing: border-box;}
+        #sort-answer-container { border: 2px dashed #ccc; border-radius: 8px; background-color: #f8f9fa; }
+        .sort-word { padding: 6px 12px; background-color: #007bff; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.95em; transition: background-color .2s; }
+        .card.answered .sort-word { cursor: default; background-color: #6c757d; }
+        #check-sort-answer-button { background-color: #28a745; color: white; padding: 10px 18px; border: none; border-radius: 8px; font-size: 1em; cursor: pointer; margin-top: 15px; }
+        #check-sort-answer-button:disabled { background-color: #6c757d; }
+        
+        /* タイプ別スタイル: SVOC (文型分析問題) */
+        #svoc-instruction { font-size: 1em; color: #0056b3; font-weight: bold; margin-bottom: 10px; text-align: center; min-height: 1.2em; padding-bottom: 10px; border-bottom: 1px solid #e9ecef;}
+        .svoc-word { cursor: pointer; padding: 2px 4px; border-radius: 4px; transition: all 0.2s; margin: 0 2px; border-bottom: 3px solid transparent; }
+        .svoc-word:hover { background-color: #e9ecef; }
+        .card.answered .svoc-word { cursor: default; }
+        .svoc-word.selected-s { background-color: #a0c4ff; border-color: #003566; }
+        .svoc-word.selected-v { background-color: #b3e5b3; border-color: #135013; }
+        .svoc-word.selected-o { background-color: #ffd6a5; border-color: #c56c00; }
+        .svoc-word.selected-c { background-color: #fca3b4; border-color: #b10021; }
+
+        /* 共通コンポーネント */
+        .status-buttons { display: flex; justify-content: space-around; margin-bottom: 15px; gap: 10px; }
+        .status-buttons button { flex-grow: 1; padding: 8px; font-size: 0.85em; border: 2px solid transparent; border-radius: 8px; cursor: pointer; opacity: 0.7; transform: scale(0.95); transition: all 0.2s; }
+        .status-buttons button.selected { font-weight: bold; opacity: 1; transform: scale(1); }
+        .status-buttons .status-not-yet { background-color: #fff3cd; }
+        .status-buttons .status-learned { background-color: #d1ecf1; }
+        .status-buttons .status-perfect { background-color: #d4edda; }
+        .status-buttons .status-not-yet.selected { background-color: #ffc107; }
+        .status-buttons .status-learned.selected { background-color: #17a2b8; color: white;}
+        .status-buttons .status-perfect.selected { background-color: #28a745; color: white;}
+        .navigation { display: flex; flex-direction: column; align-items: center; }
+        .nav-buttons-container { display: flex; justify-content: space-between; align-items: center; width: 100%; margin-bottom: 8px; }
+        #prev-button, #next-button { background-color: #007bff; color: white; padding: 8px 16px; border: none; border-radius: 8px; font-size: 0.9em; }
+        #seek-bar { width: 100%; margin: 5px 0; }
+        .hidden { display: none !important; }
+
+        @media (max-width: 420px) {
+            .sentence-container, .card-front-content { font-size: 1.2em; }
+            .group-filters button, .status-filters button { font-size: 0.75em; padding: 5px 8px; min-width: 65px;}
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- ★アコーディオン機能付きフィルター -->
+        <div class="main-filters-container">
+            <div class="accordion-header" id="accordion-toggle">
+                <span class="accordion-title">フィルター設定</span>
+                <span class="accordion-icon"></span>
+            </div>
+            <div class="accordion-panel" id="accordion-panel-content">
+                <div style="margin-bottom: 15px;">
+                    <div class="filter-title">問題グループを選択:</div>
+                    <div class="group-filters">
+                        <button data-group="all_groups">全グループ<span class="question-count"></span></button>
+                        <button data-group="5p">5P 現在/過去<span class="question-count"></span></button>
+                        <button data-group="6p">6P 未来表現<span class="question-count"></span></button>
+                        <button data-group="7p">7P 完了形(I)<span class="question-count"></span></button>
+                        <button data-group="8p">8P 完了形(II)<span class="question-count"></span></button>
+                        <button data-group="9p">9P 助動詞(I)<span class="question-count"></span></button>
+                        <button data-group="10p">10P 助動詞(II)<span class="question-count"></span></button>
+                        <button data-group="11p">11P 文の型<span class="question-count"></span></button>
+                    </div>
+                </div>
+                <div>
+                    <div class="filter-title">学習状況で絞り込み:</div>
+                    <div class="status-filters">
+                        <button data-status-filter="all_statuses">全て<span class="question-count"></span></button>
+                        <button data-status-filter="not_yet">まだ<span class="question-count"></span></button>
+                        <button data-status-filter="learned">できた<span class="question-count"></span></button>
+                        <button data-status-filter="perfect">完璧<span class="question-count"></span></button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="display-mode-switch">
+            <label for="random-mode-checkbox">ランダム表示:</label>
+            <input type="checkbox" id="random-mode-checkbox">
+        </div>
+
+        <div id="question-area" class="hidden">
+            <!-- 穴埋めカード -->
+            <div id="reveal-blank-question-card" class="card clickable-card hidden">
+                <div class="card-content">
+                    <div class="instruction-text"></div>
+                    <div class="sentence-container"></div>
+                    <div class="japanese-translation"></div>
+                </div>
+                <div class="source-display hidden"></div>
+            </div>
+            <!-- 選択カード -->
+            <div id="choice-question-card" class="card hidden">
+                <div class="instruction-text"></div>
+                <div class="card-content">
+                    <div class="sentence-container"></div>
+                    <div class="feedback-area"></div>
+                </div>
+                <div class="source-display hidden"></div>
+            </div>
+            <!-- 並び替えカード -->
+            <div id="sort-question-card" class="card hidden">
+                <div class="instruction-text"></div>
+                <div class="card-content">
+                    <div class="japanese-translation"></div>
+                    <div id="sort-answer-container"></div>
+                    <div id="sort-options-container"></div>
+                    <button id="check-sort-answer-button">解答する</button>
+                    <div class="feedback-area"></div>
+                </div>
+                <div class="source-display hidden"></div>
+            </div>
+            <!-- 書き換えカード -->
+            <div id="rewrite-question-card" class="card clickable-card hidden">
+                <div class="instruction-text"></div>
+                <div class="card-content">
+                    <div class="card-front">
+                        <div class="card-front-content"></div>
+                        <div class="hint-text"></div>
+                    </div>
+                    <div class="card-answer-area hidden">
+                        <div class="sentence-container"></div>
+                        <div class="japanese-translation"></div>
+                    </div>
+                </div>
+                <div class="source-display hidden"></div>
+            </div>
+            <!-- 翻訳カード -->
+            <div id="translate-question-card" class="card clickable-card hidden">
+                <div class="instruction-text"></div>
+                <div class="card-content">
+                    <div class="card-front">
+                        <div class="card-front-content"></div>
+                    </div>
+                    <div class="card-answer-area hidden">
+                        <div class="sentence-container"></div>
+                    </div>
+                </div>
+                <div class="source-display hidden"></div>
+            </div>
+             <!-- SVOCカード -->
+            <div id="svoc-question-card" class="card hidden">
+                <div id="svoc-instruction" class="instruction-text"></div>
+                <div class="card-content">
+                    <div class="sentence-container"></div>
+                    <div class="feedback-area"></div>
+                </div>
+                <div class="source-display hidden"></div>
+            </div>
+
+            <!-- ステータス & ナビゲーション -->
+            <div class="status-buttons">
+                <button data-status="not_yet" class="status-not-yet">まだ</button>
+                <button data-status="learned" class="status-learned">できた</button>
+                <button data-status="perfect" class="status-perfect">完璧！</button>
+            </div>
+            <div class="navigation">
+                <div class="nav-buttons-container">
+                    <button id="prev-button">← 前へ</button>
+                    <span id="progress-indicator">1 / N</span>
+                    <button id="next-button">次へ →</button>
+                </div>
+                <input type="range" id="seek-bar" value="0" min="0" max="0">
+            </div>
+        </div>
+        <div id="no-words-message" class="hidden"></div>
+    </div>
+
+    <script>
+        // === 全問題データ ===
+        const allQuestionData = [
+            // --- 5p(現在時制・過去時制) ---
+            { type: 'RevealBlank', id: "P5-1-1", topic: "5p", source: "5P ①-(1)", group: "P5-1", status: "not_yet", instruction: "日本語に合うように、[ ]内の動詞を適当な形に変えなさい。", japanese: "母はリンゴが好きです。", sentenceParts: ["My mother ", " apples."], hint: "[like]", correctAnswer: "likes", translation: "母はリンゴが好きです。" },
+            { type: 'RevealBlank', id: "P5-1-2", topic: "5p", source: "5P ①-(2)", group: "P5-1", status: "not_yet", instruction: "日本語に合うように、[ ]内の動詞を適当な形に変えなさい。", japanese: "アキはいつもその店で服を買います。", sentenceParts: ["Aki always ", " clothes at that shop."], hint: "[buy]", correctAnswer: "buys", translation: "アキはいつもその店で服を買います。" },
+            { type: 'RevealBlank', id: "P5-1-3", topic: "5p", source: "5P ①-(3)", group: "P5-1", status: "not_yet", instruction: "日本語に合うように、[ ]内の動詞を適当な形に変えなさい。", japanese: "太陽は東から昇ります。", sentenceParts: ["The sun ", " in the east."], hint: "[rise]", correctAnswer: "rises", translation: "太陽は東から昇ります。" },
+            { type: 'RevealBlank', id: "P5-1-4", topic: "5p", source: "5P ①-(4)", group: "P5-1", status: "not_yet", instruction: "日本語に合うように、[ ]内の動詞を適当な形に変えなさい。", japanese: "ベンは昨日千葉まで運転しました。", sentenceParts: ["Ben ", " to Chiba yesterday."], hint: "[drive]", correctAnswer: "drove", translation: "ベンは昨日千葉まで運転しました。" },
+            { type: 'RevealBlank', id: "P5-1-5", topic: "5p", source: "5P ①-(5)", group: "P5-1", status: "not_yet", instruction: "日本語に合うように、[ ]内の動詞を適当な形に変えなさい。", japanese: "10年前彼らは大阪に住んでいました。", sentenceParts: ["They ", " in Osaka 10 years ago."], hint: "[live]", correctAnswer: "lived", translation: "10年前彼らは大阪に住んでいました。" },
+            { type: 'RevealBlank', id: "P5-1-6", topic: "5p", source: "5P ①-(6)", group: "P5-1", status: "not_yet", instruction: "日本語に合うように、[ ]内の動詞を適当な形に変えなさい。", japanese: "アンは子どものころよく四国に行きました。", sentenceParts: ["Ann often ", " to Shikoku when she was a child."], hint: "[go]", correctAnswer: "went", translation: "アンは子どものころよく四国に行きました。" },
+            { type: 'RevealBlank', id: "P5-2-1", topic: "5p", source: "5P ②-(1)", group: "P5-2", status: "not_yet", instruction: "下線部の語句に注意して、[ ]内の動詞を適当な時制の進行形に変えなさい。", sentenceParts: ["My father ", " dinner <u>now</u>."], hint: "[make]", correctAnswer: "is making", translation: "私の父は今、夕食を作っています。" },
+            { type: 'RevealBlank', id: "P5-2-2", topic: "5p", source: "5P ②-(2)", group: "P5-2", status: "not_yet", instruction: "下線部の語句に注意して、[ ]内の動詞を適当な時制の進行形に変えなさい。", sentenceParts: ["My brother ", " tennis <u>at noon</u>."], hint: "[play]", correctAnswer: "was playing", translation: "私の兄は正午にテニスをしていました。" },
+            { type: 'RevealBlank', id: "P5-2-3", topic: "5p", source: "5P ②-(3)", group: "P5-2", status: "not_yet", instruction: "下線部の語句に注意して、[ ]内の動詞を適当な時制の進行形に変えなさい。", sentenceParts: ["The students ", " in the pool <u>now</u>."], hint: "[swim]", correctAnswer: "are swimming", translation: "生徒たちは今、プールで泳いでいます。" },
+            { type: 'RevealBlank', id: "P5-2-4", topic: "5p", source: "5P ②-(4)", group: "P5-2", status: "not_yet", instruction: "下線部の語句に注意して、[ ]内の動詞を適当な時制の進行形に変えなさい。", sentenceParts: ["I ", " <u>when my mother came home</u>."], hint: "[study]", correctAnswer: "was studying", translation: "母が家に帰ってきたとき、私は勉強していました。" },
+            { type: 'RevealBlank', id: "P5-2-5", topic: "5p", source: "5P ②-(5)", group: "P5-2", status: "not_yet", instruction: "下線部の語句に注意して、[ ]内の動詞を適当な時制の進行形に変えなさい。", sentenceParts: ["<u>Look!</u> A cat ", " on the roof."], hint: "[walk]", correctAnswer: "is walking", translation: "見て！猫が屋根の上を歩いています。" },
+            { type: 'RevealBlank', id: "P5-2-6", topic: "5p", source: "5P ②-(6)", group: "P5-2", status: "not_yet", instruction: "下線部の語句に注意して、[ ]内の動詞を適当な時制の進行形に変えなさい。", sentenceParts: ["We ", " TV <u>then</u>."], hint: "[watch]", correctAnswer: "were watching", translation: "私たちはそのときテレビを見ていました。" },
+            { type: 'RevealBlank', id: "P5-2-7", topic: "5p", source: "5P ②-(7)", group: "P5-2", status: "not_yet", instruction: "下線部の語句に注意して、[ ]内の動詞を適当な時制の進行形に変えなさい。", sentenceParts: ["Mike ", " a shower <u>when I called him</u>."], hint: "[take]", correctAnswer: "was taking", translation: "私が電話したとき、マイクはシャワーを浴びていました。" },
+            { type: 'Choice', id: "P5-3-1", topic: "5p", source: "5P ③-(1)", group: "P5-3", status: "not_yet", instruction: "各文の( )内から適当な語句を選びなさい。", sentenceParts: ["Daniel ", " a comic book when I spoke to him."], options: ["was reading", "read"], correctAnswer: "was reading", translation: "私がダニエルに話しかけたとき、彼は漫画を読んでいました。" },
+            { type: 'Choice', id: "P5-3-2", topic: "5p", source: "5P ③-(2)", group: "P5-3", status: "not_yet", instruction: "各文の( )内から適当な語句を選びなさい。", sentenceParts: ["Rena ", " your mother well."], options: ["is knowing", "knows"], correctAnswer: "knows", translation: "レナはあなたの母をよく知っています。" },
+            { type: 'Choice', id: "P5-3-3", topic: "5p", source: "5P ③-(3)", group: "P5-3", status: "not_yet", instruction: "各文の( )内から適当な語句を選びなさい。", sentenceParts: ["George ", " two sisters."], options: ["is having", "has"], correctAnswer: "has", translation: "ジョージには姉妹が2人います。" },
+            { type: 'Choice', id: "P5-3-4", topic: "5p", source: "5P ③-(4)", group: "P5-3", status: "not_yet", instruction: "各文の( )内から適当な語句を選びなさい。", sentenceParts: ["Mark ", " a computer when the phone rang."], options: ["was using", "used"], correctAnswer: "was using", translation: "電話が鳴ったとき、マークはコンピューターを使っていました。" },
+            { type: 'Sort', id: "P5-4-1", topic: "5p", source: "5P ④-(1)", group: "P5-4", status: "not_yet", instruction: "日本語に合うように、( )内の語句を並べかえなさい。", japanese: "地球は太陽のまわりを回ります。", words: ["goes", "the earth", "around", "the sun"], correctSort: "the earth goes around the sun" },
+            { type: 'Sort', id: "P5-4-2", topic: "5p", source: "5P ④-(2)", group: "P5-4", status: "not_yet", instruction: "日本語に合うように、( )内の語句を並べかえなさい。", japanese: "私が1時間前に見たときには、ジムは公園で走っていました。", words: ["in the park", "Jim", "was", "running", "when I saw him an hour ago"], correctSort: "Jim was running in the park when I saw him an hour ago" },
+            { type: 'Sort', id: "P5-4-3", topic: "5p", source: "5P ④-(3)", group: "P5-4", status: "not_yet", instruction: "日本語に合うように、( )内の語句を並べかえなさい。", japanese: "私はあなたの誕生日を覚えています。", words: ["remember", "birthday", "I", "your"], correctSort: "I remember your birthday" },
+            
+            // --- 6p(未来表現) ---
+            { type: 'Rewrite', id: "P6-1-1", topic: "6p", source: "6P ①-(1)", group: "P6-1", status: "not_yet", instruction: "[ ]内の語句を使い、will を使って全文を書きかえなさい。", original: "It is sunny today.", hint: "[tomorrow]", answer: "It will be sunny tomorrow.", translation: "明日は晴れるでしょう。" },
+            { type: 'Rewrite', id: "P6-1-2", topic: "6p", source: "6P ①-(2)", group: "P6-1", status: "not_yet", instruction: "[ ]内の語句を使い、will を使って全文を書きかえなさい。", original: "I went shopping yesterday.", hint: "[next Sunday]", answer: "I will go shopping next Sunday.", translation: "私は次の日曜日に買い物に行くつもりです。" },
+            { type: 'Rewrite', id: "P6-1-3", topic: "6p", source: "6P ①-(3)", group: "P6-1", status: "not_yet", instruction: "[ ]内の語句を使い、will を使って全文を書きかえなさい。", original: "Nana became a high school student last month.", hint: "[next month]", answer: "Nana will become a high school student next month.", translation: "ナナは来月高校生になります。" },
+            { type: 'RevealBlank', id: "P6-2-1", topic: "6p", source: "6P ②-(1)", group: "P6-2", status: "not_yet", instruction: "日本語に合うように、( )内に適語を入れなさい。", japanese: "私はお寺巡りをするつもりです。", sentenceParts: ["I ", " ", " ", " ", " some temples."], correctAnswer: "am|going|to|visit", translation: "私はお寺巡りをするつもりです。" },
+            { type: 'RevealBlank', id: "P6-2-2", topic: "6p", source: "6P ②-(2)", group: "P6-2", status: "not_yet", instruction: "日本語に合うように、( )内に適語を入れなさい。", japanese: "今週末は何をするつもりですか。", sentenceParts: ["What ", " you ", " ", " ", " this weekend?"], correctAnswer: "are|going|to|do", translation: "今週末は何をするつもりですか。" },
+            { type: 'RevealBlank', id: "P6-2-3", topic: "6p", source: "6P ②-(3)", group: "P6-2", status: "not_yet", instruction: "日本語に合うように、( )内に適語を入れなさい。", japanese: "今日の午後は雪が降りそうです。", sentenceParts: ["It ", " ", " ", " ", " this afternoon."], correctAnswer: "is|going|to|snow", translation: "今日の午後は雪が降りそうです。" },
+            { type: 'RevealBlank', id: "P6-2-4", topic: "6p", source: "6P ②-(4)", group: "P6-2", status: "not_yet", instruction: "日本語に合うように、( )内に適語を入れなさい。", japanese: "ヒロは学校に遅刻しそうです。", sentenceParts: ["Hiro ", " ", " ", " be late for* school."], correctAnswer: "is|going|to", translation: "ヒロは学校に遅刻しそうです。" },
+            { type: 'Translate', id: "P6-3-1", topic: "6p", source: "6P ③-(1)", group: "P6-3", status: "not_yet", instruction: "各文を日本語で表しなさい。", original: "My aunt arrives in Yokohama at 11.", answer: "私のおばは11時に横浜に到着します。" },
+            { type: 'Translate', id: "P6-3-2", topic: "6p", source: "6P ③-(2)", group: "P6-3", status: "not_yet", instruction: "各文を日本語で表しなさい。", original: "Ken is starting a new job next month.", answer: "来月、ケンは新しい仕事を始めます。" },
+            { type: 'Translate', id: "P6-3-3", topic: "6p", source: "6P ③-(3)", group: "P6-3", status: "not_yet", instruction: "各文を日本語で表しなさい。", original: "I'll go home before it gets dark.", answer: "暗くなる前に、私は家に帰るつもりです。" },
+            { type: 'Translate', id: "P6-3-4", topic: "6p", source: "6P ③-(4)", group: "P6-3", status: "not_yet", instruction: "各文を日本語で表しなさい。", original: "I will clean our room after my brother wakes up.", answer: "兄が起きたら、私は私たちの部屋を掃除するつもりです。" },
+            { type: 'RevealBlank', id: "P6-4-1", topic: "6p", source: "6P ④-(1)", group: "P6-4", status: "not_yet", instruction: "日本語に合うように、( )内に適語を入れなさい。", japanese: "後でオリビアに電話します。", sentenceParts: ["I ", " ", " Olivia later."], correctAnswer: "will|call", translation: "後でオリビアに電話します。" },
+            { type: 'RevealBlank', id: "P6-4-2", topic: "6p", source: "6P ④-(2)", group: "P6-4", status: "not_yet", instruction: "日本語に合うように、( )内に適語を入れなさい。", japanese: "ジムは来週17歳になります。", sentenceParts: ["Jim ", " ", " 17 years old next week."], correctAnswer: "will|be", translation: "ジムは来週17歳になります。" },
+            { type: 'RevealBlank', id: "P6-4-3", topic: "6p", source: "6P ④-(3)", group: "P6-4", status: "not_yet", instruction: "日本語に合うように、( )内に適語を入れなさい。", japanese: "今週末はピザを焼くつもりです。", sentenceParts: ["I ", " ", " ", " bake pizza this weekend."], correctAnswer: "am|going|to", translation: "今週末はピザを焼くつもりです。" },
+            { type: 'RevealBlank', id: "P6-4-4", topic: "6p", source: "6P ④-(4)", group: "P6-4", status: "not_yet", instruction: "日本語に合うように、( )内に適語を入れなさい。", japanese: "今日忙しければ、私はその本を読みません。", sentenceParts: ["I ", " read the book if I ", " busy today."], correctAnswer: "won't|am", translation: "今日忙しければ、私はその本を読みません。" },
+
+            // --- 7p(完了形(I)) ---
+            { type: 'RevealBlank', id: "P7-1-1", topic: "7p", source: "7P ①-(1)", instruction: "[ ]内の動詞を現在完了形に変えて空所に入れなさい。", sentenceParts: ["Ellen ", " in this town since she was born."], hint: "[live]", correctAnswer: "has lived", translation: "エレンは生まれてからずっとこの町に住んでいます。", status: "not_yet", group: "P7-1" },
+            { type: 'RevealBlank', id: "P7-1-2", topic: "7p", source: "7P ①-(2)", instruction: "[ ]内の動詞を現在完了形に変えて空所に入れなさい。", sentenceParts: ["I ", " this movie three times."], hint: "[see]", correctAnswer: "have seen", translation: "私はこの映画を3回見たことがあります。", status: "not_yet", group: "P7-1" },
+            { type: 'RevealBlank', id: "P7-1-3", topic: "7p", source: "7P ①-(3)", instruction: "[ ]内の動詞を現在完了形に変えて空所に入れなさい。", sentenceParts: ["The train ", "."], hint: "[just arrive]", correctAnswer: "has just arrived", translation: "ちょうど電車が到着したところです。", status: "not_yet", group: "P7-1" },
+            { type: 'RevealBlank', id: "P7-1-4", topic: "7p", source: "7P ①-(4)", instruction: "日本語に合うように、英文の空所を埋めなさい。", japanese: "今までに北海道へ行ったことがありますか。", sentenceParts: ["", " you ever ", " to Hokkaido?"], correctAnswer: "Have|been", translation: "今までに北海道へ行ったことがありますか。", status: "not_yet", group: "P7-1" },
+            { type: 'RevealBlank', id: "P7-1-5", topic: "7p", source: "7P ①-(5)", instruction: "[ ]内の動詞を現在完了形に変えて空所に入れなさい。", sentenceParts: ["Yuto ", " his homework."], hint: "[already do]", correctAnswer: "has already done", translation: "ユウトはすでに宿題を終えてしまいました。", status: "not_yet", group: "P7-1" },
+            { type: 'RevealBlank', id: "P7-1-6", topic: "7p", source: "7P ①-(6)", instruction: "[ ]内の動詞を現在完了形に変えて空所に入れなさい。", sentenceParts: ["It ", " sunny for two days."], hint: "[be]", correctAnswer: "has been", translation: "2日間ずっと晴れています。", status: "not_yet", group: "P7-1" },
+            { type: 'RevealBlank', id: "P7-2-1", topic: "7p", source: "7P ②-(1)", japanese: "父は40年間大阪に住んでいます。", sentenceParts: ["My father ", " in Osaka for forty years."], correctAnswer: "has lived", translation: "父は40年間大阪に住んでいます。", status: "not_yet", group: "P7-2" },
+            { type: 'RevealBlank', id: "P7-2-2", topic: "7p", source: "7P ②-(2)", japanese: "あなたはこの絵を前に見たことがありますか。", sentenceParts: ["", " you ", " this painting before?"], correctAnswer: "Have|seen", translation: "あなたはこの絵を前に見たことがありますか。", status: "not_yet", group: "P7-2" },
+            { type: 'RevealBlank', id: "P7-2-3", topic: "7p", source: "7P ②-(3)", japanese: "私はもうその本を読みました。", sentenceParts: ["I ", " the book."], correctAnswer: "have already read", translation: "私はもうその本を読みました。", status: "not_yet", group: "P7-2" },
+            { type: 'RevealBlank', id: "P7-2-4", topic: "7p", source: "7P ②-(4)", japanese: "バスはもう行ってしまいましたか。 — いいえ、まだです。", sentenceParts: ["", " the bus ", " yet? — No, not ", "."], correctAnswer: "Has|gone|yet", translation: "バスはもう行ってしまいましたか。 — いいえ、まだです。", status: "not_yet", group: "P7-2" },
+            { type: 'Rewrite', id: "P7-3-1", topic: "7p", source: "7P ③-(1)", instruction: "[ ]内の語句を加え、現在完了進行形の文を完成しなさい。", original: "My father is working in Osaka.", hint: "[since 2010]", answer: "My father has been working in Osaka since 2010.", translation: "私の父は2010年からずっと大阪で働いています。", status: "not_yet", group: "P7-3" },
+            { type: 'Rewrite', id: "P7-3-2", topic: "7p", source: "7P ③-(2)", instruction: "[ ]内の語句を加え、現在完了進行形の文を完成しなさい。", original: "Yui is practicing the piano.", hint: "[for three hours]", answer: "Yui has been practicing the piano for three hours.", translation: "ユイは3時間ずっとピアノを練習しています。", status: "not_yet", group: "P7-3" },
+            { type: 'Choice', id: "P7-4-1", topic: "7p", source: "7P ④-(1)", instruction: "各文の( )内から適当な語句を選びなさい。", sentenceParts: ["Ted ", " Nancy since she was a child."], options: ["knew", "has known"], correctAnswer: "has known", translation: "テッドは子供の頃からナンシーを知っています。", status: "not_yet", group: "P7-4" },
+            { type: 'Choice', id: "P7-4-2", topic: "7p", source: "7P ④-(2)", instruction: "各文の( )内から適当な語句を選びなさい。", sentenceParts: ["I ", " Betty two years ago."], options: ["saw", "have seen"], correctAnswer: "saw", translation: "私は2年前にベティに会いました。", status: "not_yet", group: "P7-4" },
+            { type: 'Choice', id: "P7-4-3", topic: "7p", source: "7P ④-(3)", instruction: "各文の( )内から適当な語句を選びなさい。", sentenceParts: ["When ", "?"], options: ["has the game started", "did the game start"], correctAnswer: "did the game start", translation: "いつ試合は始まりましたか。", status: "not_yet", group: "P7-4" },
+            { type: 'Choice', id: "P7-4-4", topic: "7p", source: "7P ④-(4)", instruction: "各文の( )内から適当な語句を選びなさい。", sentenceParts: ["It ", " yesterday."], options: ["has rained", "rained"], correctAnswer: "rained", translation: "昨日は雨が降りました。", status: "not_yet", group: "P7-4" },
+            { type: 'RevealBlank', id: "P7-5-1", topic: "7p", source: "7P ⑤-(1)", japanese: "マイクは一度も天ぷらを食べたことがありません。", sentenceParts: ["Mike ", " tempura."], correctAnswer: "has never eaten", translation: "マイクは一度も天ぷらを食べたことがありません。", status: "not_yet", group: "P7-5" },
+            { type: 'RevealBlank', id: "P7-5-2", topic: "7p", source: "7P ⑤-(2)", japanese: "私はすでに部屋を掃除してしまいました。", sentenceParts: ["I ", " the room."], correctAnswer: "have already cleaned", translation: "私はすでに部屋を掃除してしまいました。", status: "not_yet", group: "P7-5" },
+            { type: 'RevealBlank', id: "P7-5-3", topic: "7p", source: "7P ⑤-(3)", japanese: "マリコは2時間泳ぎ続けています。", sentenceParts: ["Mariko ", " for two hours."], correctAnswer: "has been swimming", translation: "マリコは2時間泳ぎ続けています。", status: "not_yet", group: "P7-5" },
+
+            // --- 8p(完了形(II)) ---
+            { type: 'RevealBlank', id: "P8-1-1", topic: "8p", source: "8P ①-(1)", instruction: "[ ]内の動詞を過去完了形に変えて空所に入れなさい。", sentenceParts: ["It ", " hot for a week until yesterday."], hint: "[be]", correctAnswer: "had been", status: "not_yet", group: "P8-1" },
+            { type: 'RevealBlank', id: "P8-1-2", topic: "8p", source: "8P ①-(2)", instruction: "[ ]内の動詞を過去完了形に変えて空所に入れなさい。", sentenceParts: ["I ", " the woman three times by that time."], hint: "[see]", correctAnswer: "had seen", status: "not_yet", group: "P8-1" },
+            { type: 'RevealBlank', id: "P8-1-3", topic: "8p", source: "8P ①-(3)", instruction: "[ ]内の動詞を過去完了形に変えて空所に入れなさい。", sentenceParts: ["When I called him, he ", " out."], hint: "[already go]", correctAnswer: "had already gone", status: "not_yet", group: "P8-1" },
+            { type: 'RevealBlank', id: "P8-1-4", topic: "8p", source: "8P ①-(4)", instruction: "[ ]内の動詞を過去完了形に変えて空所に入れなさい。", sentenceParts: ["We ", " quiet until the teacher finished his story."], hint: "[be]", correctAnswer: "had been", status: "not_yet", group: "P8-1" },
+            { type: 'RevealBlank', id: "P8-1-5", topic: "8p", source: "8P ①-(5)", instruction: "[ ]内の動詞を過去完了形に変えて空所に入れなさい。", sentenceParts: ["The drama ", " when I came home."], hint: "[just start]", correctAnswer: "had just started", status: "not_yet", group: "P8-1" },
+            { type: 'RevealBlank', id: "P8-1-6", topic: "8p", source: "8P ①-(6)", instruction: "[ ]内の動詞を過去完了形に変えて空所に入れなさい。", sentenceParts: ["I noticed that I ", " my bag on the train."], hint: "[leave]", correctAnswer: "had left", status: "not_yet", group: "P8-1" },
+            { type: 'RevealBlank', id: "P8-2-1", topic: "8p", source: "8P ②-(1)", instruction: "( )内の語句を過去完了進行形に変えなさい。", sentenceParts: ["When she arrived, I ", " for three hours."], hint: "(be waiting)", correctAnswer: "had been waiting", status: "not_yet", group: "P8-2" },
+            { type: 'RevealBlank', id: "P8-2-2", topic: "8p", source: "8P ②-(2)", instruction: "( )内の語句を過去完了進行形に変えなさい。", sentenceParts: ["The baby ", " until his mother picked him up."], hint: "(be crying)", correctAnswer: "had been crying", status: "not_yet", group: "P8-2" },
+            { type: 'RevealBlank', id: "P8-2-3", topic: "8p", source: "8P ②-(3)", instruction: "( )内の語句を過去完了進行形に変えなさい。", sentenceParts: ["We ", " soccer until it got dark."], hint: "(be playing)", correctAnswer: "had been playing", status: "not_yet", group: "P8-2" },
+            { type: 'Choice', id: "P8-3-1", topic: "8p", source: "8P ③-(1)", instruction: "各文の( )内から適当な語句を選びなさい。", sentenceParts: ["My mother ", " abroad until then."], options: ["has never been", "had never been"], correctAnswer: "had never been", translation: "私の母はその時まで海外に行ったことがありませんでした。", status: "not_yet", group: "P8-3" },
+            { type: 'Choice', id: "P8-3-2", topic: "8p", source: "8P ③-(2)", instruction: "各文の( )内から適当な語句を選びなさい。", sentenceParts: ["Aki ", " in Tokyo for five years before she moved to Kyoto."], options: ["has lived", "had lived"], correctAnswer: "had lived", translation: "アキは京都に引っ越す前に5年間東京に住んでいました。", status: "not_yet", group: "P8-3" },
+            { type: 'Choice', id: "P8-3-3", topic: "8p", source: "8P ③-(3)", instruction: "各文の( )内から適当な語句を選びなさい。", sentenceParts: ["I'm going to meet Ayaka today. I ", " her for a year."], options: ["haven't seen", "hadn't seen"], correctAnswer: "haven't seen", translation: "今日アヤカに会います。彼女とは1年間会っていません。", status: "not_yet", group: "P8-3" },
+            { type: 'Choice', id: "P8-3-4", topic: "8p", source: "8P ③-(4)", instruction: "各文の( )内から適当な語句を選びなさい。", sentenceParts: ["I ", " for two hours when my sister woke me up."], options: ["have slept", "had been sleeping"], correctAnswer: "had been sleeping", translation: "姉が私を起こした時、私は2時間眠っていました。", status: "not_yet", group: "P8-3" },
+            { type: 'Choice', id: "P8-3-5", topic: "8p", source: "8P ③-(5)", instruction: "各文の( )内から適当な語句を選びなさい。", sentenceParts: ["I ", " to bed when my father came home."], options: ["have already gone", "had already gone"], correctAnswer: "had already gone", translation: "父が帰宅した時、私はすでに寝ていました。", status: "not_yet", group: "P8-3" },
+            { type: 'RevealBlank', id: "P8-4-1", topic: "8p", source: "8P ④-(1)", japanese: "私はアンが私にくれたコップを割ってしまいました。", sentenceParts: ["I broke the glass that Ann ", " to me."], correctAnswer: "had given", translation: "私はアンが私にくれたコップを割ってしまいました。", status: "not_yet", group: "P8-4" },
+            { type: 'RevealBlank', id: "P8-4-2", topic: "8p", source: "8P ④-(2)", japanese: "その映画が終わったとき、雨はすでにやんでいました。", sentenceParts: ["The rain ", " when the movie was over*."], correctAnswer: "had already stopped", translation: "その映画が終わったとき、雨はすでにやんでいました。", status: "not_yet", group: "P8-4" },
+            { type: 'RevealBlank', id: "P8-4-3", topic: "8p", source: "8P ④-(3)", japanese: "ジムは夕食まで2時間ずっとバイオリンを弾いていました。", sentenceParts: ["Jim ", " the violin for two hours before dinner."], correctAnswer: "had been playing", translation: "ジムは夕食まで2時間ずっとバイオリンを弾いていました。", status: "not_yet", group: "P8-4" },
+            { type: 'Sort', id: "P8-5-1", topic: "8p", source: "8P ⑤-(1)", japanese: "休暇をとるまで、リサは1か月間ずっと多忙でした。", words: ["Lisa", "had", "been", "busy", "for", "a month"], correctSort: "Lisa had been busy for a month", sentenceTemplate: ["", " until she took a vacation."], status: "not_yet", group: "P8-5" },
+            { type: 'Sort', id: "P8-5-2", topic: "8p", source: "8P ⑤-(2)", japanese: "その美術館には以前訪れたことがあったので、簡単にたどり着きました。", words: ["I", "had", "visited", "the museum", "before"], correctSort: "I had visited the museum before", sentenceTemplate: ["", ", so I got there easily."], status: "not_yet", group: "P8-5" },
+            { type: 'Sort', id: "P8-5-3", topic: "8p", source: "8P ⑤-(3)", japanese: "バスが来たとき、スティーブはケイトと10分間話をしていました。", words: ["Steve", "had", "been", "talking", "with", "Kate", "for"], correctSort: "Steve had been talking with Kate for", sentenceTemplate: ["", " 10 minutes when the bus came."], status: "not_yet", group: "P8-5" },
+
+            // --- 9p(助動詞(I)) ---
+            { type: 'Translate', id: "P9-1-1a", topic: "9p", source: "9P ①-(1)a", instruction: "各文を日本語で表しなさい。", original: "Mr. White can speak five languages.", answer: "ホワイト氏は5か国語を話せます。", status: "not_yet", group: "P9-1" },
+            { type: 'Translate', id: "P9-1-1b", topic: "9p", source: "9P ①-(1)b", instruction: "各文を日本語で表しなさい。", original: "You can't use my computer.", answer: "あなたは私のコンピューターを使ってはいけません。", status: "not_yet", group: "P9-1" },
+            { type: 'Translate', id: "P9-1-1c", topic: "9p", source: "9P ①-(1)c", instruction: "各文を日本語で表しなさい。", original: "Jim has just had dinner. He can't be hungry.", answer: "ジムは夕食を食べたばかりです。彼がお腹がすいているはずがない。", status: "not_yet", group: "P9-1" },
+            { type: 'Translate', id: "P9-1-2a", topic: "9p", source: "9P ①-(2)a", instruction: "各文を日本語で表しなさい。", original: "May I open the window?", answer: "この窓を開けてもいいですか。", status: "not_yet", group: "P9-1" },
+            { type: 'Translate', id: "P9-1-2b", topic: "9p", source: "9P ①-(2)b", instruction: "各文を日本語で表しなさい。", original: "John may come to the game* or he may not.", answer: "ジョンは試合に来るかもしれないし、来ないかもしれない。", status: "not_yet", group: "P9-1" },
+            { type: 'Translate', id: "P9-1-3a", topic: "9p", source: "9P ①-(3)a", instruction: "各文を日本語で表しなさい。", original: "I must finish my homework by tomorrow.", answer: "私は明日までに宿題を終わらせなければいけない。", status: "not_yet", group: "P9-1" },
+            { type: 'Translate', id: "P9-1-3b", topic: "9p", source: "9P ①-(3)b", instruction: "各文を日本語で表しなさい。", original: "Shinya is a popular writer. His new book must be interesting.", answer: "シンヤは人気の作家です。彼の新しい本は面白い にちがいない。", status: "not_yet", group: "P9-1" },
+            { type: 'RevealBlank', id: "P9-2-1a", topic: "9p", source: "9P ②-(1)a", japanese: "私は明日早く家に帰らなければならないでしょう。", sentenceParts: ["I ", " go home early tomorrow."], correctAnswer: "will have to", status: "not_yet", group: "P9-2" },
+            { type: 'RevealBlank', id: "P9-2-1b", topic: "9p", source: "9P ②-(1)b", japanese: "私は昨日早く家に帰らなければなりませんでした。", sentenceParts: ["I ", " go home early yesterday."], correctAnswer: "had to", status: "not_yet", group: "P9-2" },
+            { type: 'RevealBlank', id: "P9-2-2", topic: "9p", source: "9P ②-(2)", japanese: "彼女が自分の記録に満足しているはずがない。", sentenceParts: ["She ", " be happy with her record."], correctAnswer: "can't", status: "not_yet", group: "P9-2" },
+            { type: 'RevealBlank', id: "P9-2-3", topic: "9p", source: "9P ②-(3)", japanese: "あなたは駅まで走る必要はありません。", sentenceParts: ["You ", " run to the station."], correctAnswer: "don't have to", status: "not_yet", group: "P9-2" },
+            { type: 'Choice', id: "P9-3-1", topic: "9p", source: "9P ③-(1)", instruction: "各文の( )内から適当な語句を選びなさい。", sentenceParts: ["You will ", " see cherry blossoms soon."], options: ["can", "be able to"], correctAnswer: "be able to", translation: "あなたはもうすぐ桜の花を見ることができるでしょう。", status: "not_yet", group: "P9-3" },
+            { type: 'Choice', id: "P9-3-2", topic: "9p", source: "9P ③-(2)", instruction: "各文の( )内から適当な語句を選びなさい。", sentenceParts: ["I left my pencil case at home. ", " I borrow your pen?"], options: ["May", "Must"], correctAnswer: "May", translation: "家に筆箱を忘れました。あなたのペンを借りてもいいですか。", status: "not_yet", group: "P9-3" },
+            { type: 'Choice', id: "P9-3-3", topic: "9p", source: "9P ③-(3)", instruction: "各文の( )内から適当な語句を選びなさい。", sentenceParts: ["Masato has gone to the U.S. He ", " be in Tokyo now."], options: ["can't", "must"], correctAnswer: "can't", translation: "マサトはアメリカへ行ってしまいました。彼が今東京にいるはずがありません。", status: "not_yet", group: "P9-3" },
+            { type: 'Choice', id: "P9-3-4", topic: "9p", source: "9P ③-(4)", instruction: "各文の( )内から適当な語句を選びなさい。", sentenceParts: ["This river is very dangerous. You ", " swim here."], options: ["must not", "don't have to"], correctAnswer: "must not", translation: "この川はとても危険です。ここで泳いではいけません。", status: "not_yet", group: "P9-3" },
+            { type: 'Choice', id: "P9-3-5", topic: "9p", source: "9P ③-(5)", instruction: "各文の( )内から適当な語句を選びなさい。", sentenceParts: ["The sky is getting dark. It ", " rain soon."], options: ["may", "can't"], correctAnswer: "may", translation: "暗くなってきました。もうすぐ雨が降るかもしれません。", status: "not_yet", group: "P9-3" },
+            { type: 'RevealBlank', id: "P9-4-1", topic: "9p", source: "9P ④-(1)", japanese: "この答えは間違っているにちがいありません。", sentenceParts: ["This answer ", " wrong."], correctAnswer: "must be", status: "not_yet", group: "P9-4" },
+            { type: 'RevealBlank', id: "P9-4-2", topic: "9p", source: "9P ④-(2)", japanese: "サリーは明日会議に出席しなければならない。", sentenceParts: ["Sally ", " attend* the meeting tomorrow."], correctAnswer: "will have to", status: "not_yet", group: "P9-4" },
+            { type: 'RevealBlank', id: "P9-4-3", topic: "9p", source: "9P ④-(3)", japanese: "ダンは一生懸命練習したので、試合に勝つことができました。", sentenceParts: ["Dan practiced hard, so he ", " win the match*."], correctAnswer: "was able to", status: "not_yet", group: "P9-4" },
+
+            // --- 10p(助動詞(II)) ---
+            { type: 'RevealBlank', id: "P10-1-1", topic: "10p", source: "10P ①-(1)", japanese: "あなたは毎日朝食をとったほうがいいです。", sentenceParts: ["You ", " have breakfast every day."], correctAnswer: "should", status: "not_yet", group: "P10-1" },
+            { type: 'RevealBlank', id: "P10-1-2", topic: "10p", source: "10P ①-(2)", japanese: "私たちは今は話すべきではありません。", sentenceParts: ["We ", " talk now."], correctAnswer: "shouldn't", status: "not_yet", group: "P10-1" },
+            { type: 'RevealBlank', id: "P10-1-3", topic: "10p", source: "10P ①-(3)", japanese: "メグはもう家に着いているはずです。", sentenceParts: ["Meg ", " be home by now."], correctAnswer: "should", status: "not_yet", group: "P10-1" },
+            { type: 'RevealBlank', id: "P10-1-4", topic: "10p", source: "10P ①-(4)", japanese: "今日小包を送ったばかりだ。今日の午後に届くはずがない。", sentenceParts: ["I only sent you the parcel* today. It ", " arrive this afternoon."], correctAnswer: "shouldn't", status: "not_yet", group: "P10-1" },
+            { type: 'Translate', id: "P10-2-1", topic: "10p", source: "10P ②-(1)", instruction: "各文を日本語で表しなさい。", original: "Will you pass me the pepper?", answer: "コショウをとってくれませんか。", status: "not_yet", group: "P10-2" },
+            { type: 'Translate', id: "P10-2-2", topic: "10p", source: "10P ②-(2)", instruction: "各文を日本語で表しなさい。", original: "Shall I open the window?", answer: "私が窓をあけましょうか。", status: "not_yet", group: "P10-2" },
+            { type: 'Translate', id: "P10-2-3", topic: "10p", source: "10P ②-(3)", instruction: "各文を日本語で表しなさい。", original: "Would you give me some advice?", answer: "私にいくつかアドバイスをくれませんか。", status: "not_yet", group: "P10-2" },
+            { type: 'Translate', id: "P10-2-4", topic: "10p", source: "10P ②-(4)", instruction: "各文を日本語で表しなさい。", original: "Won't you come to my house tomorrow?", answer: "明日私の家に来ませんか。", status: "not_yet", group: "P10-2" },
+            { type: 'Translate', id: "P10-2-5", topic: "10p", source: "10P ②-(5)", instruction: "各文を日本語で表しなさい。", original: "Shall we have a picnic today?", answer: "今日ピクニックをしませんか。", status: "not_yet", group: "P10-2" },
+            { type: 'Translate', id: "P10-2-6", topic: "10p", source: "10P ②-(6)", instruction: "各文を日本語で表しなさい。", original: "There used to be a park here.", answer: "以前はここに公園がありました。", status: "not_yet", group: "P10-2" },
+            { type: 'Choice', id: "P10-3-1", topic: "10p", source: "10P ③-(1)", instruction: "各文の( )内から適当な語句を選びなさい。", sentenceParts: ["The key ", " be in the bag, but I can't find it."], options: ["should", "shall"], correctAnswer: "should", translation: "その鍵はバッグの中にあるはずですが、見つかりません。", status: "not_yet", group: "P10-3" },
+            { type: 'Choice', id: "P10-3-2", topic: "10p", source: "10P ③-(2)", instruction: "各文の( )内から適当な語句を選びなさい。", sentenceParts: ["She ", " have short hair."], options: ["used to", "would"], correctAnswer: "used to", translation: "彼女は以前、髪が短かった。", status: "not_yet", group: "P10-3" },
+            { type: 'Choice', id: "P10-3-3", topic: "10p", source: "10P ③-(3)", instruction: "各文の( )内から適当な語句を選びなさい。", sentenceParts: ["I ", " some water."], options: ["would like", "would like to"], correctAnswer: "would like", translation: "お水をいただけますか。", status: "not_yet", group: "P10-3" },
+            { type: 'Choice', id: "P10-3-4", topic: "10p", source: "10P ③-(4)", instruction: "各文の( )内から適当な語句を選びなさい。", sentenceParts: ["", " you send me an email later?"], options: ["Will", "Shall"], correctAnswer: "Will", translation: "あとで私にEメールを送ってくれませんか。", status: "not_yet", group: "P10-3" },
+            { type: 'Choice', id: "P10-3-5", topic: "10p", source: "10P ③-(5)", instruction: "各文の( )内から適当な語句を選びなさい。", sentenceParts: ["", " I make some coffee?"], options: ["Will", "Shall"], correctAnswer: "Shall", translation: "私がコーヒーをいれましょうか。", status: "not_yet", group: "P10-3" },
+            { type: 'Choice', id: "P10-3-6", topic: "10p", source: "10P ③-(6)", instruction: "各文の( )内から適当な語句を選びなさい。", sentenceParts: ["My grandmother ", " often bake cakes when I was a child."], options: ["should", "would"], correctAnswer: "would", translation: "私の祖母は、私が子供の頃よくケーキを焼いてくれたものだ。", status: "not_yet", group: "P10-3" },
+            { type: 'Sort', id: "P10-4-1", topic: "10p", source: "10P ④-(1)", instruction: "日本語に合うように、( )内の語句を並べかえなさい。", japanese: "子どもは外で遊ぶべきです。", words: ["Children", "play", "outside", "should"], correctSort: "Children should play outside", translation: "子どもは外で遊ぶべきです。" , status: "not_yet", group: "P10-4" },
+            { type: 'Sort', id: "P10-4-2", topic: "10p", source: "10P ④-(2)", instruction: "日本語に合うように、( )内の語句を並べかえなさい。", japanese: "タクシーを呼んでいただけませんか。", words: ["Would", "you", "call", "a taxi for me?"], correctSort: "Would you call a taxi for me?", translation: "タクシーを呼んでいただけませんか。", status: "not_yet", group: "P10-4" },
+            { type: 'Sort', id: "P10-4-3", topic: "10p", source: "10P ④-(3)", instruction: "日本語に合うように、( )内の語句を並べかえなさい。", japanese: "私は以前は毎週日曜日にテニスをしたものだ。", words: ["I", "used", "to", "play", "tennis", "every Sunday."], correctSort: "I used to play tennis every Sunday.", translation: "私は以前は毎週日曜日にテニスをしたものだ。", status: "not_yet", group: "P10-4" },
+
+            // --- 11p(文の型) ---
+            { type: 'SV', id: "P11-1-Ex", topic: "11p", source: "11P ① 例", sentence: "My brother swims very fast.", correct: { S: [1], V: [2] }, status: "not_yet", group: "P11-1" },
+            { type: 'SV', id: "P11-1-1", topic: "11p", source: "11P ①-(1)", sentence: "Birds fly south in winter.", correct: { S: [0], V: [1] }, status: "not_yet", group: "P11-1" },
+            { type: 'SV', id: "P11-1-2", topic: "11p", source: "11P ①-(2)", sentence: "Takuya lives in Kyoto now.", correct: { S: [0], V: [1] }, status: "not_yet", group: "P11-1" },
+            { type: 'SV', id: "P11-1-3", topic: "11p", source: "11P ①-(3)", sentence: "We have a fish tank in our classroom.", correct: { S: [0], V: [1] }, status: "not_yet", group: "P11-1" },
+            { type: 'SV', id: "P11-1-4", topic: "11p", source: "11P ①-(4)", sentence: "The box on the table is very heavy.", correct: { S: [1], V: [5] }, status: "not_yet", group: "P11-1" },
+            { type: 'Translate', id: "P11-2-1", topic: "11p", source: "11P ②-(1)", instruction: "各文を日本語で表しなさい。", original: "Madoka's father is an engineer.", answer: "マドカの父はエンジニアです。", status: "not_yet", group: "P11-2" },
+            { type: 'Translate', id: "P11-2-2", topic: "11p", source: "11P ②-(2)", instruction: "各文を日本語で表しなさい。", original: "She looked wonderful on stage.", answer: "彼女はステージ上で素晴らしく見えた。", status: "not_yet", group: "P11-2" },
+            { type: 'Translate', id: "P11-2-3", topic: "11p", source: "11P ②-(3)", instruction: "各文を日本語で表しなさい。", original: "James became a popular writer.", answer: "ジェームズは人気作家になった。", status: "not_yet", group: "P11-2" },
+            { type: 'Translate', id: "P11-2-4", topic: "11p", source: "11P ②-(4)", instruction: "各文を日本語で表しなさい。", original: "She sang beautiful songs.", answer: "彼女は美しい歌を歌った。", status: "not_yet", group: "P11-2" },
+            { type: 'Translate', id: "P11-2-5", topic: "11p", source: "11P ②-(5)", instruction: "各文を日本語で表しなさい。", original: "The students kept quiet.", answer: "その生徒たちは静かにしていた。", status: "not_yet", group: "P11-2" },
+            { type: 'Translate', id: "P11-2-6", topic: "11p", source: "11P ②-(6)", instruction: "各文を日本語で表しなさい。", original: "We played soccer after school.", answer: "私たちは放課後サッカーをした。", status: "not_yet", group: "P11-2" },
+            { type: 'Sort', id: "P11-3-1", topic: "11p", source: "11P ③-(1)", instruction: "日本語に合うように、( )内の語句を並べかえなさい。", japanese: "ハヤトは私にサインをくれた。", words: ["gave", "Hayato", "his autograph", "me"], correctSort: "Hayato gave me his autograph", translation: "ハヤトは私にサインをくれた。", status: "not_yet", group: "P11-3" },
+            { type: 'Sort', id: "P11-3-2", topic: "11p", source: "11P ③-(2)", instruction: "日本語に合うように、( )内の語句を並べかえなさい。", japanese: "マークはよく私に英語を教える。", words: ["Mark", "often", "English", "teaches", "me"], correctSort: "Mark often teaches me English", translation: "マークはよく私に英語を教える。", status: "not_yet", group: "P11-3" },
+            { type: 'Sort', id: "P11-3-3", topic: "11p", source: "11P ③-(3)", instruction: "日本語に合うように、( )内の語句を並べかえなさい。", japanese: "キャロルはベンに彼女の写真を見せた。", words: ["her pictures", "showed", "to", "Carol", "Ben"], correctSort: "Carol showed her pictures to Ben", translation: "キャロルはベンに彼女の写真を見せた。", status: "not_yet", group: "P11-3" },
+            { type: 'Sort', id: "P11-3-4", topic: "11p", source: "11P ③-(4)", instruction: "日本語に合うように、( )内の語句を並べかえなさい。", japanese: "私はその老人のために席を見つけた。", words: ["I", "the old man", "a seat", "for", "found"], correctSort: "I found a seat for the old man", translation: "私はその老人のために席を見つけた。", status: "not_yet", group: "P11-3" },
+            { type: 'Sort', id: "P11-3-5", topic: "11p", source: "11P ③-(5)", instruction: "日本語に合うように、( )内の語句を並べかえなさい。", japanese: "私たちの学校には300人の生徒がいます。", words: ["are", "in", "There", "our school", "300 students"], correctSort: "There are 300 students in our school", translation: "私たちの学校には300人の生徒がいます。", status: "not_yet", group: "P11-3" },
+            { type: 'SVOC', id: "P11-4-1", topic: "11p", source: "11P ④-(1)", sentence: "We call the boy Tom.", correct: { S: [0], V: [1], O: [3], C: [4] }, translation: "私たちはその男の子をトムと呼びます。", status: "not_yet", group: "P11-4" },
+            { type: 'SVOC', id: "P11-4-2", topic: "11p", source: "11P ④-(2)", sentence: "The news made me sad.", correct: { S: [1], V: [2], O: [3], C: [4] }, translation: "その知らせは私を悲しくさせた。", status: "not_yet", group: "P11-4" },
+            { type: 'SVOC', id: "P11-4-3", topic: "11p", source: "11P ④-(3)", sentence: "I painted the wall blue.", correct: { S: [0], V: [1], O: [3], C: [4] }, translation: "私はその壁を青く塗った。", status: "not_yet", group: "P11-4" },
+            { type: 'SVOC', id: "P11-4-4", topic: "11p", source: "11P ④-(4)", sentence: "They named their baby Miki.", correct: { S: [0], V: [1], O: [3], C: [4] }, translation: "彼らは自分たちの赤ちゃんをミキと名付けた。", status: "not_yet", group: "P11-4" },
+            { type: 'SVOC', id: "P11-4-5", topic: "11p", source: "11P ④-(5)", sentence: "I found math interesting.", correct: { S: [0], V: [1], O: [2], C: [3] }, translation: "私は数学が面白いとわかった。", status: "not_yet", group: "P11-4" }
+        ];
+
+        // === DOM & Globals ===
+        const questionArea = document.getElementById('question-area');
+        const cardElements = {
+            RevealBlank: document.getElementById('reveal-blank-question-card'),
+            Choice: document.getElementById('choice-question-card'),
+            Sort: document.getElementById('sort-question-card'),
+            Rewrite: document.getElementById('rewrite-question-card'),
+            Translate: document.getElementById('translate-question-card'),
+            SV: document.getElementById('svoc-question-card'),
+            SVOC: document.getElementById('svoc-question-card'),
+        };
+        const noWordsMessageElement = document.getElementById('no-words-message');
+        const statusButtons = document.querySelectorAll('.status-buttons button');
+        const [prevButton, nextButton] = [document.getElementById('prev-button'), document.getElementById('next-button')];
+        const progressIndicatorElement = document.getElementById('progress-indicator');
+        const randomModeCheckbox = document.getElementById('random-mode-checkbox');
+        const groupFilterButtons = document.querySelectorAll('.group-filters button');
+        const statusFilterButtons = document.querySelectorAll('.status-filters button');
+        const seekBar = document.getElementById('seek-bar');
+        const accordionToggle = document.getElementById('accordion-toggle');
+        const accordionPanel = document.getElementById('accordion-panel-content');
+        
+        let allQuestions = [], currentFilteredQuestions = [], currentIndex = 0;
+        let currentGroupFilter = 'all_groups', currentStatusFilter = 'all_statuses', isRandomMode = false;
+        
+        // State for individual cards
+        let isCardAnswered = false;
+        let isCardShowingAnswer = false;
+        let svoc_userSelection = {}, svoc_selectionSteps = [], svoc_currentStep = 0;
+
+        // === Core Functions ===
+        function loadData() {
+            const savedData = localStorage.getItem('interactiveGrammarDrill_AllInOne');
+            allQuestions = savedData ? JSON.parse(savedData) : JSON.parse(JSON.stringify(allQuestionData));
+        }
+        function saveData() { localStorage.setItem('interactiveGrammarDrill_AllInOne', JSON.stringify(allQuestions)); }
+
+        function displayQuestion() {
+            isCardAnswered = false;
+            isCardShowingAnswer = false;
+            const question = currentFilteredQuestions[currentIndex];
+            Object.values(cardElements).forEach(c => c.classList.add('hidden'));
+            if (!question) return;
+            
+            const card = cardElements[question.type];
+            if (card) {
+                card.classList.remove('hidden');
+                
+                const feedbackArea = card.querySelector('.feedback-area');
+                if(feedbackArea) {
+                    feedbackArea.className = 'feedback-area'; // Reset style
+                    feedbackArea.innerHTML = ''; // Clear content
+                }
+
+                if (question.type === 'RevealBlank') displayRevealBlankQuestion(question, card);
+                else if (question.type === 'Choice') displayChoiceQuestion(question, card);
+                else if (question.type === 'Sort') displaySortQuestion(question, card);
+                else if (question.type === 'Rewrite') displayRewriteQuestion(question, card);
+                else if (question.type === 'Translate') displayTranslateQuestion(question, card);
+                else if (question.type === 'SV' || question.type === 'SVOC') displaySVOCQuestion(question, card);
+            }
+            updateStatusButtons();
+        }
+        
+        // --- Question Type Handlers ---
+
+        function displayRevealBlankQuestion(question, card) {
+            const sentenceContainer = card.querySelector('.sentence-container');
+            const japaneseTranslation = card.querySelector('.japanese-translation');
+            
+            card.querySelector('.instruction-text').textContent = question.instruction;
+            japaneseTranslation.textContent = question.japanese || "";
+            japaneseTranslation.classList.toggle('hidden', !question.japanese && !question.translation);
+
+            sentenceContainer.innerHTML = '';
+            card.querySelector('.source-display').classList.add('hidden');
+            card.classList.remove('showing-answer');
+            
+            const isMultiBlank = question.correctAnswer.includes('|');
+            if (isMultiBlank) {
+                const answers = question.correctAnswer.split('|');
+                let sentenceHTML = question.sentenceParts[0];
+                for (let i = 0; i < answers.length; i++) {
+                    const wordCount = answers[i].split(' ').length;
+                    sentenceHTML += `<span class="blank-space">${'( )'.repeat(wordCount)}</span>` + (question.sentenceParts[i + 1] || '');
+                }
+                sentenceContainer.innerHTML = sentenceHTML;
+            } else {
+                const blankSpan = document.createElement('span');
+                blankSpan.className = 'blank-space';
+                const wordCount = question.correctAnswer.split(' ').length;
+                blankSpan.textContent = '( )'.repeat(wordCount);
+                sentenceContainer.innerHTML = question.sentenceParts[0];
+                sentenceContainer.appendChild(blankSpan);
+                sentenceContainer.innerHTML += question.sentenceParts[1];
+            }
+            if(question.hint) {
+                const hintSpan = document.createElement('span');
+                hintSpan.className = 'hint-text';
+                hintSpan.textContent = question.hint;
+                sentenceContainer.appendChild(hintSpan);
+            }
+        }
+        
+        function handleCardClick() {
+             if (currentFilteredQuestions.length === 0) return;
+             const question = currentFilteredQuestions[currentIndex];
+             if (!['RevealBlank', 'Rewrite', 'Translate'].includes(question.type)) return;
+             
+             isCardShowingAnswer = !isCardShowingAnswer;
+             const card = cardElements[question.type];
+             card.classList.toggle('showing-answer', isCardShowingAnswer);
+             
+             if (question.type === 'RevealBlank') {
+                const blanks = card.querySelectorAll('.blank-space');
+                const answers = question.correctAnswer.split('|');
+                if (isCardShowingAnswer) {
+                    blanks.forEach((b, i) => b.textContent = answers[i]);
+                    if (question.translation) card.querySelector('.japanese-translation').textContent = `訳: ${question.translation}`;
+                } else {
+                    blanks.forEach((b, i) => b.textContent = '( )'.repeat(answers[i].split(' ').length));
+                    card.querySelector('.japanese-translation').textContent = question.japanese || "";
+                }
+             } else if (question.type === 'Rewrite') {
+                 card.querySelector('.card-front').classList.toggle('hidden', isCardShowingAnswer);
+                 card.querySelector('.card-answer-area').classList.toggle('hidden', !isCardShowingAnswer);
+             } else if (question.type === 'Translate') {
+                 card.querySelector('.card-front').classList.toggle('hidden', isCardShowingAnswer);
+                 card.querySelector('.card-answer-area').classList.toggle('hidden', !isCardShowingAnswer);
+             }
+
+             card.querySelector('.source-display').textContent = `出典: ${question.source}`;
+             card.querySelector('.source-display').classList.toggle('hidden', !isCardShowingAnswer);
+        }
+        
+        function displayChoiceQuestion(question, card) {
+            const sentenceContainer = card.querySelector('.sentence-container');
+            const feedbackArea = card.querySelector('.feedback-area');
+            
+            card.querySelector('.instruction-text').textContent = question.instruction;
+            sentenceContainer.innerHTML = '';
+            feedbackArea.innerHTML = '';
+            card.querySelector('.source-display').classList.add('hidden');
+            
+            const optionsContainer = document.createElement('span');
+            question.options.forEach((option, index) => {
+                const optionSpan = document.createElement('span');
+                optionSpan.textContent = option;
+                optionSpan.className = 'choice-option';
+                optionSpan.dataset.option = option;
+                optionsContainer.append(optionSpan, (index < question.options.length - 1) ? ' / ' : '');
+            });
+
+            sentenceContainer.append(
+                document.createTextNode(question.sentenceParts[0]),
+                document.createTextNode(' ('),
+                optionsContainer,
+                document.createTextNode(') '),
+                document.createTextNode(question.sentenceParts[1] || '')
+            );
+        }
+
+        function checkChoiceAnswer(question, selectedOption, selectedSpan, card) {
+            isCardAnswered = true;
+            const isCorrect = selectedOption.toLowerCase() === question.correctAnswer.toLowerCase();
+            const feedbackArea = card.querySelector('.feedback-area');
+            feedbackArea.innerHTML = (isCorrect ? '正解です！' : '不正解です。') + 
+                `<div class="correct-answer-display">訳: ${question.translation}</div>`;
+            feedbackArea.className = `feedback-area ${isCorrect ? 'correct' : 'incorrect'}`;
+
+            card.querySelectorAll('.choice-option').forEach(span => {
+                span.classList.add('answered');
+                if (span.dataset.option.toLowerCase() === question.correctAnswer.toLowerCase()) span.classList.add('correct');
+            });
+            if (!isCorrect) selectedSpan.classList.add('incorrect');
+            
+            card.querySelector('.source-display').textContent = `出典: ${question.source}`;
+            card.querySelector('.source-display').classList.remove('hidden');
+        }
+
+        function displaySortQuestion(question, card) {
+            const optionsContainer = card.querySelector('#sort-options-container');
+            const answerContainer = card.querySelector('#sort-answer-container');
+            const feedbackArea = card.querySelector('.feedback-area');
+            const checkButton = card.querySelector('#check-sort-answer-button');
+            const japaneseTranslation = card.querySelector('.japanese-translation');
+            
+            card.querySelector('.instruction-text').textContent = question.instruction;
+            japaneseTranslation.textContent = question.japanese || '';
+            japaneseTranslation.classList.toggle('hidden', !question.japanese);
+
+            optionsContainer.innerHTML = ''; answerContainer.innerHTML = '';
+            card.classList.remove('answered');
+            checkButton.disabled = false;
+            card.querySelector('.source-display').classList.add('hidden');
+            
+            let fullSentenceContainer = japaneseTranslation.nextElementSibling;
+            if (!fullSentenceContainer || !['sort-answer-container', 'sentence-container'].includes(fullSentenceContainer.id)) {
+                 fullSentenceContainer = document.createElement('div');
+                 fullSentenceContainer.className = 'sentence-container';
+                 japaneseTranslation.after(fullSentenceContainer);
+            }
+             if (question.sentenceTemplate) {
+                 fullSentenceContainer.innerHTML = `${question.sentenceTemplate[0]}<span class="blank-space">(...)</span>${question.sentenceTemplate[1]}`;
+                 fullSentenceContainer.classList.remove('hidden');
+            } else {
+                 fullSentenceContainer.classList.add('hidden');
+            }
+
+            question.words.slice().sort(() => Math.random() - 0.5).forEach(word => {
+                const wordBtn = document.createElement('button');
+                wordBtn.textContent = word;
+                wordBtn.className = 'sort-word';
+                wordBtn.onclick = () => !isCardAnswered && answerContainer.appendChild(wordBtn);
+                optionsContainer.appendChild(wordBtn);
+            });
+            answerContainer.onclick = (e) => !isCardAnswered && e.target.classList.contains('sort-word') && optionsContainer.appendChild(e.target);
+        }
+        
+        function checkSortAnswer() {
+            if(isCardAnswered) return;
+            isCardAnswered = true;
+
+            const question = currentFilteredQuestions[currentIndex];
+            const card = cardElements.Sort;
+            const answerContainer = card.querySelector('#sort-answer-container');
+            const feedbackArea = card.querySelector('.feedback-area');
+            const userAnswer = Array.from(answerContainer.children).map(btn => btn.textContent).join(' ');
+            
+            const isCorrect = userAnswer === question.correctSort;
+            const fullCorrectSentence = question.sentenceTemplate ? `${question.sentenceTemplate[0]}${question.correctSort}${question.sentenceTemplate[1]}` : question.correctSort;
+            const translationText = question.translation ? `<br>訳: ${question.translation}` : '';
+            
+            feedbackArea.innerHTML = (isCorrect ? '正解です！' : '不正解です。') + 
+                `<div class="correct-answer-display">正: ${fullCorrectSentence}${translationText}</div>`;
+            feedbackArea.className = `feedback-area ${isCorrect ? 'correct' : 'incorrect'}`;
+            
+            card.classList.add('answered');
+            card.querySelector('#check-sort-answer-button').disabled = true;
+            card.querySelector('.source-display').textContent = `出典: ${question.source}`;
+            card.querySelector('.source-display').classList.remove('hidden');
+        }
+
+        function displayRewriteQuestion(question, card) {
+            const front = card.querySelector('.card-front');
+            const answerArea = card.querySelector('.card-answer-area');
+            
+            card.querySelector('.instruction-text').textContent = question.instruction;
+            front.querySelector('.card-front-content').textContent = question.original;
+            front.querySelector('.hint-text').textContent = question.hint;
+            answerArea.querySelector('.sentence-container').textContent = question.answer;
+            answerArea.querySelector('.japanese-translation').textContent = `訳: ${question.translation}`;
+            
+            front.classList.remove('hidden');
+            answerArea.classList.add('hidden');
+            card.querySelector('.source-display').classList.add('hidden');
+            card.classList.remove('showing-answer');
+        }
+        
+        function displayTranslateQuestion(question, card) {
+            const front = card.querySelector('.card-front');
+            const answerArea = card.querySelector('.card-answer-area');
+
+            card.querySelector('.instruction-text').textContent = question.instruction;
+            front.querySelector('.card-front-content').textContent = question.original;
+            answerArea.querySelector('.sentence-container').textContent = question.answer;
+
+            front.classList.remove('hidden');
+            answerArea.classList.add('hidden');
+            card.querySelector('.source-display').classList.add('hidden');
+            card.classList.remove('showing-answer');
+        }
+
+        function displaySVOCQuestion(question, card) {
+            isCardAnswered = false;
+            svoc_userSelection = {};
+            svoc_currentStep = 0;
+            svoc_selectionSteps = (question.type === 'SV') ? ['S', 'V'] : ['S', 'V', 'O', 'C'];
+            
+            const sentenceContainer = card.querySelector('.sentence-container');
+            
+            card.classList.remove('answered');
+            card.querySelector('.feedback-area').innerHTML = '';
+            card.querySelector('.source-display').classList.add('hidden');
+            sentenceContainer.innerHTML = '';
+
+            question.sentence.split(' ').forEach((word, index) => {
+                const wordSpan = document.createElement('span');
+                wordSpan.textContent = word;
+                wordSpan.className = 'svoc-word';
+                wordSpan.dataset.index = index;
+                wordSpan.addEventListener('click', () => handleSVOCWordClick(wordSpan, index));
+                sentenceContainer.appendChild(wordSpan);
+            });
+            updateSVOCDisplayForCurrentStep();
+        }
+
+        function handleSVOCWordClick(spanElement, index) {
+            if (isCardAnswered) return;
+            const part = svoc_selectionSteps[svoc_currentStep];
+            svoc_userSelection[part] = [index];
+            spanElement.classList.add(`selected-${part.toLowerCase()}`);
+            advanceSVOCStep();
+        }
+
+        function advanceSVOCStep() {
+            if (isCardAnswered) return;
+            svoc_currentStep++;
+            if (svoc_currentStep >= svoc_selectionSteps.length) {
+                checkSVOCAnswer();
+            } else {
+                updateSVOCDisplayForCurrentStep();
+            }
+        }
+
+        function updateSVOCDisplayForCurrentStep() {
+            const instruction = cardElements.SVOC.querySelector('#svoc-instruction');
+            const part = svoc_selectionSteps[svoc_currentStep];
+            const partJapanese = {S: '主語', V: '動詞', O: '目的語', C: '補語'};
+            instruction.textContent = `${partJapanese[part]}(${part}) をクリックしてください`;
+        }
+
+        function checkSVOCAnswer() {
+            isCardAnswered = true;
+            const question = currentFilteredQuestions[currentIndex];
+            const card = cardElements.SVOC;
+            
+            let isCorrect = true;
+            svoc_selectionSteps.forEach(part => {
+                const correctPart = (question.correct[part] || []).toString();
+                const userPart = (svoc_userSelection[part] || []).toString();
+                if (correctPart !== userPart) isCorrect = false;
+            });
+            
+            const translationText = question.translation ? `<br><small>訳: ${question.translation}</small>` : '';
+            const feedbackArea = card.querySelector('.feedback-area');
+            feedbackArea.innerHTML = (isCorrect ? '正解です！' : '不正解です。') + translationText;
+            feedbackArea.className = `feedback-area ${isCorrect ? 'correct' : 'incorrect'}`;
+            
+            card.classList.add('answered');
+            card.querySelector('.source-display').textContent = `出典: ${question.source}`;
+            card.querySelector('.source-display').classList.remove('hidden');
+
+            card.querySelectorAll('.svoc-word').forEach(span => {
+                const index = parseInt(span.dataset.index, 10);
+                span.className = 'svoc-word answered';
+                Object.keys(question.correct).forEach(part => {
+                    if (question.correct[part] && question.correct[part].includes(index)) {
+                        span.classList.add(`selected-${part.toLowerCase()}`);
+                    }
+                });
+            });
+        }
+
+        // --- UI & Filter Functions ---
+        function applyFiltersAndDisplay() {
+            let tempQuestions = allQuestions;
+            if (currentGroupFilter !== 'all_groups') {
+                tempQuestions = tempQuestions.filter(q => q.topic === currentGroupFilter);
+            }
+            if (currentStatusFilter !== 'all_statuses') {
+                tempQuestions = tempQuestions.filter(q => q.status === currentStatusFilter);
+            }
+            if (isRandomMode) tempQuestions.sort(() => Math.random() - 0.5);
+            else tempQuestions.sort((a, b) => a.id.localeCompare(b.id));
+            
+            currentFilteredQuestions = tempQuestions;
+            currentIndex = 0;
+            updateView();
+            updateFilterCounts();
+        }
+        function updateView() {
+            if (currentFilteredQuestions.length === 0) {
+                questionArea.classList.add('hidden');
+                noWordsMessageElement.classList.remove('hidden');
+                noWordsMessageElement.textContent = "この条件に合う問題はありません。";
+            } else {
+                questionArea.classList.remove('hidden');
+                noWordsMessageElement.classList.add('hidden');
+                displayQuestion();
+            }
+            updateSeekBar(); updateProgressIndicator(); updateFilterButtonsUI();
+        }
+        function updateSeekBar() {
+            seekBar.disabled = isRandomMode;
+            seekBar.max = currentFilteredQuestions.length > 1 ? currentFilteredQuestions.length - 1 : 0;
+            seekBar.value = currentIndex;
+        }
+        function updateProgressIndicator() {
+            progressIndicatorElement.textContent = `${currentFilteredQuestions.length > 0 ? currentIndex + 1 : 0} / ${currentFilteredQuestions.length}`;
+        }
+        function updateStatusButtons() {
+            const question = currentFilteredQuestions[currentIndex];
+            statusButtons.forEach(btn => btn.classList.toggle('selected', question && btn.dataset.status === question.status));
+        }
+        function updateFilterButtonsUI() {
+            groupFilterButtons.forEach(btn => btn.classList.toggle('active-group-filter', btn.dataset.group === currentGroupFilter));
+            statusFilterButtons.forEach(btn => btn.classList.toggle('active-status-filter', btn.dataset.statusFilter === currentStatusFilter));
+        }
+        function updateFilterCounts() {
+            const baseForGroupCount = (currentStatusFilter === 'all_statuses') ? allQuestions : allQuestions.filter(q => q.status === currentStatusFilter);
+            groupFilterButtons.forEach(btn => {
+                const group = btn.dataset.group;
+                const count = (group === 'all_groups') ? baseForGroupCount.length : baseForGroupCount.filter(q => q.topic === group).length;
+                btn.querySelector('.question-count').textContent = `(${count})`;
+            });
+            const baseForStatusCount = (currentGroupFilter === 'all_groups' || !currentGroupFilter) ? allQuestions : allQuestions.filter(q => q.topic === currentGroupFilter);
+            statusFilterButtons.forEach(btn => {
+                const status = btn.dataset.statusFilter;
+                const count = (status === 'all_statuses') ? baseForStatusCount.length : baseForStatusCount.filter(q => q.status === status).length;
+                btn.querySelector('.question-count').textContent = `(${count})`;
+            });
+        }
+
+        // --- Event Listeners ---
+        nextButton.addEventListener('click', () => { if (currentIndex < currentFilteredQuestions.length - 1) { currentIndex++; updateView(); } });
+        prevButton.addEventListener('click', () => { if (currentIndex > 0) { currentIndex--; updateView(); } });
+        seekBar.addEventListener('input', (e) => { if (!isRandomMode) { currentIndex = parseInt(e.target.value, 10); updateView(); } });
+        
+        statusButtons.forEach(button => button.addEventListener('click', () => {
+            if (currentFilteredQuestions.length === 0) return;
+            const q_id = currentFilteredQuestions[currentIndex].id;
+            const originalQuestion = allQuestions.find(q => q.id === q_id);
+            if (originalQuestion) {
+                originalQuestion.status = button.dataset.status;
+                saveData();
+                updateStatusButtons();
+                updateFilterCounts();
+            }
+        }));
+        groupFilterButtons.forEach(button => button.addEventListener('click', (e) => { currentGroupFilter = e.currentTarget.dataset.group; applyFiltersAndDisplay(); }));
+        statusFilterButtons.forEach(button => button.addEventListener('click', (e) => { currentStatusFilter = e.currentTarget.dataset.statusFilter; applyFiltersAndDisplay(); }));
+        randomModeCheckbox.addEventListener('change', (e) => { isRandomMode = e.target.checked; applyFiltersAndDisplay(); });
+        
+        // ★アコーディオンのイベントリスナー
+        accordionToggle.addEventListener('click', () => {
+            accordionToggle.classList.toggle('active');
+            accordionPanel.classList.toggle('show');
+            if (accordionPanel.classList.contains('show')) {
+                accordionPanel.style.maxHeight = accordionPanel.scrollHeight + "px";
+            } else {
+                accordionPanel.style.maxHeight = null;
+            }
+        });
+
+        cardElements.RevealBlank.addEventListener('click', handleCardClick);
+        cardElements.Rewrite.addEventListener('click', handleCardClick);
+        cardElements.Translate.addEventListener('click', handleCardClick);
+        
+        cardElements.Choice.addEventListener('click', (e) => {
+            if (e.target.classList.contains('choice-option') && !isCardAnswered) {
+                checkChoiceAnswer(currentFilteredQuestions[currentIndex], e.target.dataset.option, e.target, cardElements.Choice);
+            }
+        });
+        cardElements.Sort.querySelector('#check-sort-answer-button').addEventListener('click', checkSortAnswer);
+
+        // --- Initialization ---
+        loadData();
+        applyFiltersAndDisplay();
+    </script>
+</body>
+</html>
