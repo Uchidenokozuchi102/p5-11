@@ -57,8 +57,10 @@
         .choice-option.answered { cursor: default; }
         .choice-option.correct { color: #155724; text-decoration: underline; }
         .choice-option.incorrect { color: #721c24; text-decoration: line-through; }
+        #choice-question-card .sentence-container { line-height: 1.8; }
 
         /* タイプ別スタイル: Sort (並び替え問題) */
+        .sort-sentence-template { font-size: 1.4em; font-weight: 500; color: #2c3e50; text-align: center; line-height: 1.7; margin-bottom: 10px; }
         #sort-options-container, #sort-answer-container { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; padding: 10px; min-height: 40px; width: 100%; box-sizing: border-box;}
         #sort-answer-container { border: 2px dashed #ccc; border-radius: 8px; background-color: #f8f9fa; }
         .sort-word { padding: 6px 12px; background-color: #007bff; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.95em; transition: background-color .2s; }
@@ -68,7 +70,8 @@
         
         /* タイプ別スタイル: SVOC (文型分析問題) */
         #svoc-instruction { font-size: 1em; color: #0056b3; font-weight: bold; margin-bottom: 10px; text-align: center; min-height: 1.2em; padding-bottom: 10px; border-bottom: 1px solid #e9ecef;}
-        .svoc-word { cursor: pointer; padding: 2px 4px; border-radius: 4px; transition: all 0.2s; margin: 0 2px; border-bottom: 3px solid transparent; }
+        #svoc-question-card .sentence-container { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 0.1em 0.4em; }
+        .svoc-word { cursor: pointer; padding: 2px 4px; border-radius: 4px; transition: all 0.2s; border-bottom: 3px solid transparent; outline: 2px solid transparent; transition: outline 0.2s ease; }
         .svoc-word:hover { background-color: #e9ecef; }
         .card.answered .svoc-word { cursor: default; }
         .svoc-word.selected-s { background-color: #a0c4ff; border-color: #003566; }
@@ -93,7 +96,7 @@
         .hidden { display: none !important; }
 
         @media (max-width: 420px) {
-            .sentence-container, .card-front-content { font-size: 1.2em; }
+            .sentence-container, .card-front-content, .sort-sentence-template { font-size: 1.2em; line-height: 1.6; }
             .group-filters button, .status-filters button { font-size: 0.75em; padding: 5px 8px; min-width: 65px;}
         }
     </style>
@@ -108,7 +111,7 @@
             </div>
             <div class="accordion-panel" id="accordion-panel-content">
                 <div style="margin-bottom: 15px;">
-                    <div class="filter-title">問題グループを選択:</div>
+                    <div class="filter-title">問題グループを選択 (複数選択可):</div>
                     <div class="group-filters">
                         <button data-group="all_groups">全グループ<span class="question-count"></span></button>
                         <button data-group="5p">5P 現在/過去<span class="question-count"></span></button>
@@ -161,6 +164,8 @@
                 <div class="instruction-text"></div>
                 <div class="card-content">
                     <div class="japanese-translation"></div>
+                    <!-- sentenceTemplate がある問題用のプレースホルダー -->
+                    <div class="sort-sentence-template hidden"></div>
                     <div id="sort-answer-container"></div>
                     <div id="sort-options-container"></div>
                     <button id="check-sort-answer-button">解答する</button>
@@ -363,11 +368,11 @@
             { type: 'Translate', id: "P11-2-4", topic: "11p", source: "11P ②-(4)", instruction: "各文を日本語で表しなさい。", original: "She sang beautiful songs.", answer: "彼女は美しい歌を歌った。", status: "not_yet", group: "P11-2" },
             { type: 'Translate', id: "P11-2-5", topic: "11p", source: "11P ②-(5)", instruction: "各文を日本語で表しなさい。", original: "The students kept quiet.", answer: "その生徒たちは静かにしていた。", status: "not_yet", group: "P11-2" },
             { type: 'Translate', id: "P11-2-6", topic: "11p", source: "11P ②-(6)", instruction: "各文を日本語で表しなさい。", original: "We played soccer after school.", answer: "私たちは放課後サッカーをした。", status: "not_yet", group: "P11-2" },
-            { type: 'Sort', id: "P11-3-1", topic: "11p", source: "11P ③-(1)", instruction: "日本語に合うように、( )内の語句を並べかえなさい。", japanese: "ハヤトは私にサインをくれた。", words: ["gave", "Hayato", "his autograph", "me"], correctSort: "Hayato gave me his autograph", translation: "ハヤトは私にサインをくれた。", status: "not_yet", group: "P11-3" },
-            { type: 'Sort', id: "P11-3-2", topic: "11p", source: "11P ③-(2)", instruction: "日本語に合うように、( )内の語句を並べかえなさい。", japanese: "マークはよく私に英語を教える。", words: ["Mark", "often", "English", "teaches", "me"], correctSort: "Mark often teaches me English", translation: "マークはよく私に英語を教える。", status: "not_yet", group: "P11-3" },
-            { type: 'Sort', id: "P11-3-3", topic: "11p", source: "11P ③-(3)", instruction: "日本語に合うように、( )内の語句を並べかえなさい。", japanese: "キャロルはベンに彼女の写真を見せた。", words: ["her pictures", "showed", "to", "Carol", "Ben"], correctSort: "Carol showed her pictures to Ben", translation: "キャロルはベンに彼女の写真を見せた。", status: "not_yet", group: "P11-3" },
-            { type: 'Sort', id: "P11-3-4", topic: "11p", source: "11P ③-(4)", instruction: "日本語に合うように、( )内の語句を並べかえなさい。", japanese: "私はその老人のために席を見つけた。", words: ["I", "the old man", "a seat", "for", "found"], correctSort: "I found a seat for the old man", translation: "私はその老人のために席を見つけた。", status: "not_yet", group: "P11-3" },
-            { type: 'Sort', id: "P11-3-5", topic: "11p", source: "11P ③-(5)", instruction: "日本語に合うように、( )内の語句を並べかえなさい。", japanese: "私たちの学校には300人の生徒がいます。", words: ["are", "in", "There", "our school", "300 students"], correctSort: "There are 300 students in our school", translation: "私たちの学校には300人の生徒がいます。", status: "not_yet", group: "P11-3" },
+            { type: 'Sort', id: "P11-3-1", topic: "11p", source: "11P ③-(1)", instruction: "日本語に合うように、( )内の語句を並べかえなさい。", words: ["gave", "Hayato", "his autograph", "me"], correctSort: "Hayato gave me his autograph", translation: "ハヤトは私にサインをくれた。", status: "not_yet", group: "P11-3" },
+            { type: 'Sort', id: "P11-3-2", topic: "11p", source: "11P ③-(2)", instruction: "日本語に合うように、( )内の語句を並べかえなさい。", words: ["Mark", "often", "English", "teaches", "me"], correctSort: "Mark often teaches me English", translation: "マークはよく私に英語を教える。", status: "not_yet", group: "P11-3" },
+            { type: 'Sort', id: "P11-3-3", topic: "11p", source: "11P ③-(3)", instruction: "日本語に合うように、( )内の語句を並べかえなさい。", words: ["her pictures", "showed", "to", "Carol", "Ben"], correctSort: "Carol showed her pictures to Ben", translation: "キャロルはベンに彼女の写真を見せた。", status: "not_yet", group: "P11-3" },
+            { type: 'Sort', id: "P11-3-4", topic: "11p", source: "11P ③-(4)", instruction: "日本語に合うように、( )内の語句を並べかえなさい。", words: ["I", "the old man", "a seat", "for", "found"], correctSort: "I found a seat for the old man", translation: "私はその老人のために席を見つけた。", status: "not_yet", group: "P11-3" },
+            { type: 'Sort', id: "P11-3-5", topic: "11p", source: "11P ③-(5)", instruction: "日本語に合うように、( )内の語句を並べかえなさい。", words: ["are", "in", "There", "our school", "300 students"], correctSort: "There are 300 students in our school", translation: "私たちの学校には300人の生徒がいます。", status: "not_yet", group: "P11-3" },
             { type: 'SVOC', id: "P11-4-1", topic: "11p", source: "11P ④-(1)", sentence: "We call the boy Tom.", correct: { S: [0], V: [1], O: [3], C: [4] }, translation: "私たちはその男の子をトムと呼びます。", status: "not_yet", group: "P11-4" },
             { type: 'SVOC', id: "P11-4-2", topic: "11p", source: "11P ④-(2)", sentence: "The news made me sad.", correct: { S: [1], V: [2], O: [3], C: [4] }, translation: "その知らせは私を悲しくさせた。", status: "not_yet", group: "P11-4" },
             { type: 'SVOC', id: "P11-4-3", topic: "11p", source: "11P ④-(3)", sentence: "I painted the wall blue.", correct: { S: [0], V: [1], O: [3], C: [4] }, translation: "私はその壁を青く塗った。", status: "not_yet", group: "P11-4" },
@@ -398,7 +403,7 @@
         const accordionPanel = document.getElementById('accordion-panel-content');
         
         let allQuestions = [], currentFilteredQuestions = [], currentIndex = 0;
-        let currentGroupFilter = 'all_groups', currentStatusFilter = 'all_statuses', isRandomMode = false;
+        let currentGroupFilters = ['all_groups'], currentStatusFilter = 'all_statuses', isRandomMode = false;
         
         // State for individual cards
         let isCardAnswered = false;
@@ -528,11 +533,12 @@
                 optionsContainer.append(optionSpan, (index < question.options.length - 1) ? ' / ' : '');
             });
 
+            const choiceWrapper = document.createElement('span');
+            choiceWrapper.append(' (', optionsContainer, ') ');
+
             sentenceContainer.append(
                 document.createTextNode(question.sentenceParts[0]),
-                document.createTextNode(' ('),
-                optionsContainer,
-                document.createTextNode(') '),
+                choiceWrapper,
                 document.createTextNode(question.sentenceParts[1] || '')
             );
         }
@@ -558,30 +564,24 @@
         function displaySortQuestion(question, card) {
             const optionsContainer = card.querySelector('#sort-options-container');
             const answerContainer = card.querySelector('#sort-answer-container');
-            const feedbackArea = card.querySelector('.feedback-area');
-            const checkButton = card.querySelector('#check-sort-answer-button');
+            const templateContainer = card.querySelector('.sort-sentence-template');
             const japaneseTranslation = card.querySelector('.japanese-translation');
             
             card.querySelector('.instruction-text').textContent = question.instruction;
             japaneseTranslation.textContent = question.japanese || '';
             japaneseTranslation.classList.toggle('hidden', !question.japanese);
 
-            optionsContainer.innerHTML = ''; answerContainer.innerHTML = '';
+            optionsContainer.innerHTML = ''; 
+            answerContainer.innerHTML = '';
+            templateContainer.innerHTML = '';
+            templateContainer.classList.add('hidden');
             card.classList.remove('answered');
-            checkButton.disabled = false;
+            card.querySelector('#check-sort-answer-button').disabled = false;
             card.querySelector('.source-display').classList.add('hidden');
             
-            let fullSentenceContainer = japaneseTranslation.nextElementSibling;
-            if (!fullSentenceContainer || !['sort-answer-container', 'sentence-container'].includes(fullSentenceContainer.id)) {
-                 fullSentenceContainer = document.createElement('div');
-                 fullSentenceContainer.className = 'sentence-container';
-                 japaneseTranslation.after(fullSentenceContainer);
-            }
-             if (question.sentenceTemplate) {
-                 fullSentenceContainer.innerHTML = `${question.sentenceTemplate[0]}<span class="blank-space">(...)</span>${question.sentenceTemplate[1]}`;
-                 fullSentenceContainer.classList.remove('hidden');
-            } else {
-                 fullSentenceContainer.classList.add('hidden');
+            if (question.sentenceTemplate) {
+                templateContainer.innerHTML = `${question.sentenceTemplate[0]}<span class="blank-space">(...)</span>${question.sentenceTemplate[1]}`;
+                templateContainer.classList.remove('hidden');
             }
 
             question.words.slice().sort(() => Math.random() - 0.5).forEach(word => {
@@ -591,7 +591,12 @@
                 wordBtn.onclick = () => !isCardAnswered && answerContainer.appendChild(wordBtn);
                 optionsContainer.appendChild(wordBtn);
             });
-            answerContainer.onclick = (e) => !isCardAnswered && e.target.classList.contains('sort-word') && optionsContainer.appendChild(e.target);
+
+            answerContainer.onclick = (e) => {
+                if (!isCardAnswered && e.target.classList.contains('sort-word')) {
+                    optionsContainer.appendChild(e.target);
+                }
+            };
         }
         
         function checkSortAnswer() {
@@ -602,10 +607,14 @@
             const card = cardElements.Sort;
             const answerContainer = card.querySelector('#sort-answer-container');
             const feedbackArea = card.querySelector('.feedback-area');
-            const userAnswer = Array.from(answerContainer.children).map(btn => btn.textContent).join(' ');
+            const userAnswer = Array.from(answerContainer.children).map(btn => btn.textContent).join(' ').trim();
+            const correctAnswer = question.correctSort.trim();
             
-            const isCorrect = userAnswer === question.correctSort;
-            const fullCorrectSentence = question.sentenceTemplate ? `${question.sentenceTemplate[0]}${question.correctSort}${question.sentenceTemplate[1]}` : question.correctSort;
+            const isCorrect = userAnswer === correctAnswer;
+            
+            const fullCorrectSentence = question.sentenceTemplate 
+                ? `${question.sentenceTemplate[0]}${question.correctSort}${question.sentenceTemplate[1]}` 
+                : question.correctSort;
             const translationText = question.translation ? `<br>訳: ${question.translation}` : '';
             
             feedbackArea.innerHTML = (isCorrect ? '正解です！' : '不正解です。') + 
@@ -674,9 +683,21 @@
 
         function handleSVOCWordClick(spanElement, index) {
             if (isCardAnswered) return;
+
+            // 既に他の品詞で選択されている単語かチェック
+            const isAlreadySelected = Object.values(svoc_userSelection).some(indices => indices.includes(index));
+
+            if (isAlreadySelected) {
+                // 選択済みの単語がクリックされた場合、フィードバックを与えて処理を中断
+                spanElement.style.outline = '2px solid #dc3545';
+                setTimeout(() => { spanElement.style.outline = ''; }, 500);
+                return; // 先に進ませない
+            }
+
             const part = svoc_selectionSteps[svoc_currentStep];
             svoc_userSelection[part] = [index];
             spanElement.classList.add(`selected-${part.toLowerCase()}`);
+            
             advanceSVOCStep();
         }
 
@@ -732,14 +753,25 @@
         // --- UI & Filter Functions ---
         function applyFiltersAndDisplay() {
             let tempQuestions = allQuestions;
-            if (currentGroupFilter !== 'all_groups') {
-                tempQuestions = tempQuestions.filter(q => q.topic === currentGroupFilter);
+
+            if (!currentGroupFilters.includes('all_groups')) {
+                tempQuestions = tempQuestions.filter(q => currentGroupFilters.includes(q.topic));
             }
+            
             if (currentStatusFilter !== 'all_statuses') {
                 tempQuestions = tempQuestions.filter(q => q.status === currentStatusFilter);
             }
-            if (isRandomMode) tempQuestions.sort(() => Math.random() - 0.5);
-            else tempQuestions.sort((a, b) => a.id.localeCompare(b.id));
+            
+            if (isRandomMode) {
+                tempQuestions.sort(() => Math.random() - 0.5);
+            } else {
+                tempQuestions.sort((a, b) => {
+                    const pageA = parseInt(a.topic.replace('p', ''), 10);
+                    const pageB = parseInt(b.topic.replace('p', ''), 10);
+                    if (pageA !== pageB) return pageA - pageB;
+                    return a.id.localeCompare(b.id, undefined, { numeric: true, sensitivity: 'base' });
+                });
+            }
             
             currentFilteredQuestions = tempQuestions;
             currentIndex = 0;
@@ -771,7 +803,7 @@
             statusButtons.forEach(btn => btn.classList.toggle('selected', question && btn.dataset.status === question.status));
         }
         function updateFilterButtonsUI() {
-            groupFilterButtons.forEach(btn => btn.classList.toggle('active-group-filter', btn.dataset.group === currentGroupFilter));
+            groupFilterButtons.forEach(btn => btn.classList.toggle('active-group-filter', currentGroupFilters.includes(btn.dataset.group)));
             statusFilterButtons.forEach(btn => btn.classList.toggle('active-status-filter', btn.dataset.statusFilter === currentStatusFilter));
         }
         function updateFilterCounts() {
@@ -781,7 +813,10 @@
                 const count = (group === 'all_groups') ? baseForGroupCount.length : baseForGroupCount.filter(q => q.topic === group).length;
                 btn.querySelector('.question-count').textContent = `(${count})`;
             });
-            const baseForStatusCount = (currentGroupFilter === 'all_groups' || !currentGroupFilter) ? allQuestions : allQuestions.filter(q => q.topic === currentGroupFilter);
+
+            const baseForStatusCount = (currentGroupFilters.includes('all_groups') || currentGroupFilters.length === 0) 
+                ? allQuestions 
+                : allQuestions.filter(q => currentGroupFilters.includes(q.topic));
             statusFilterButtons.forEach(btn => {
                 const status = btn.dataset.statusFilter;
                 const count = (status === 'all_statuses') ? baseForStatusCount.length : baseForStatusCount.filter(q => q.status === status).length;
@@ -805,11 +840,32 @@
                 updateFilterCounts();
             }
         }));
-        groupFilterButtons.forEach(button => button.addEventListener('click', (e) => { currentGroupFilter = e.currentTarget.dataset.group; applyFiltersAndDisplay(); }));
+        
+        groupFilterButtons.forEach(button => button.addEventListener('click', (e) => {
+            const group = e.currentTarget.dataset.group;
+            if (group === 'all_groups') {
+                currentGroupFilters = ['all_groups'];
+            } else {
+                const allIndex = currentGroupFilters.indexOf('all_groups');
+                if (allIndex > -1) currentGroupFilters.splice(allIndex, 1);
+
+                const groupIndex = currentGroupFilters.indexOf(group);
+                if (groupIndex > -1) {
+                    currentGroupFilters.splice(groupIndex, 1);
+                } else {
+                    currentGroupFilters.push(group);
+                }
+                
+                if (currentGroupFilters.length === 0) {
+                    currentGroupFilters = ['all_groups'];
+                }
+            }
+            applyFiltersAndDisplay();
+        }));
+
         statusFilterButtons.forEach(button => button.addEventListener('click', (e) => { currentStatusFilter = e.currentTarget.dataset.statusFilter; applyFiltersAndDisplay(); }));
         randomModeCheckbox.addEventListener('change', (e) => { isRandomMode = e.target.checked; applyFiltersAndDisplay(); });
         
-        // ★アコーディオンのイベントリスナー
         accordionToggle.addEventListener('click', () => {
             accordionToggle.classList.toggle('active');
             accordionPanel.classList.toggle('show');
