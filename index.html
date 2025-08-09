@@ -135,9 +135,14 @@
             </div>
         </div>
 
-        <div class="display-mode-switch">
-            <label for="random-mode-checkbox">ランダム表示:</label>
-            <input type="checkbox" id="random-mode-checkbox">
+        <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+            <div style="text-align: left; margin-bottom: 10px;">
+                <button id="reset-data-button" style="font-size: 0.75em; padding: 4px 8px; border: 1px solid #dc3545; color: #dc3545; background-color: transparent; border-radius: 4px; cursor: pointer;">データリセット</button>
+            </div>
+            <div class="display-mode-switch">
+                <label for="random-mode-checkbox">ランダム表示:</label>
+                <input type="checkbox" id="random-mode-checkbox">
+            </div>
         </div>
 
         <div id="question-area" class="hidden">
@@ -368,6 +373,7 @@
             { type: 'Translate', id: "P11-2-4", topic: "11p", source: "11P ②-(4)", instruction: "各文を日本語で表しなさい。", original: "She sang beautiful songs.", answer: "彼女は美しい歌を歌った。", status: "not_yet", group: "P11-2" },
             { type: 'Translate', id: "P11-2-5", topic: "11p", source: "11P ②-(5)", instruction: "各文を日本語で表しなさい。", original: "The students kept quiet.", answer: "その生徒たちは静かにしていた。", status: "not_yet", group: "P11-2" },
             { type: 'Translate', id: "P11-2-6", topic: "11p", source: "11P ②-(6)", instruction: "各文を日本語で表しなさい。", original: "We played soccer after school.", answer: "私たちは放課後サッカーをした。", status: "not_yet", group: "P11-2" },
+            // ★ P11-3の問題から `japanese` プロパティを削除
             { type: 'Sort', id: "P11-3-1", topic: "11p", source: "11P ③-(1)", instruction: "日本語に合うように、( )内の語句を並べかえなさい。", words: ["gave", "Hayato", "his autograph", "me"], correctSort: "Hayato gave me his autograph", translation: "ハヤトは私にサインをくれた。", status: "not_yet", group: "P11-3" },
             { type: 'Sort', id: "P11-3-2", topic: "11p", source: "11P ③-(2)", instruction: "日本語に合うように、( )内の語句を並べかえなさい。", words: ["Mark", "often", "English", "teaches", "me"], correctSort: "Mark often teaches me English", translation: "マークはよく私に英語を教える。", status: "not_yet", group: "P11-3" },
             { type: 'Sort', id: "P11-3-3", topic: "11p", source: "11P ③-(3)", instruction: "日本語に合うように、( )内の語句を並べかえなさい。", words: ["her pictures", "showed", "to", "Carol", "Ben"], correctSort: "Carol showed her pictures to Ben", translation: "キャロルはベンに彼女の写真を見せた。", status: "not_yet", group: "P11-3" },
@@ -401,6 +407,7 @@
         const seekBar = document.getElementById('seek-bar');
         const accordionToggle = document.getElementById('accordion-toggle');
         const accordionPanel = document.getElementById('accordion-panel-content');
+        const resetDataButton = document.getElementById('reset-data-button');
         
         let allQuestions = [], currentFilteredQuestions = [], currentIndex = 0;
         let currentGroupFilters = ['all_groups'], currentStatusFilter = 'all_statuses', isRandomMode = false;
@@ -684,14 +691,12 @@
         function handleSVOCWordClick(spanElement, index) {
             if (isCardAnswered) return;
 
-            // 既に他の品詞で選択されている単語かチェック
             const isAlreadySelected = Object.values(svoc_userSelection).some(indices => indices.includes(index));
 
             if (isAlreadySelected) {
-                // 選択済みの単語がクリックされた場合、フィードバックを与えて処理を中断
                 spanElement.style.outline = '2px solid #dc3545';
-                setTimeout(() => { spanElement.style.outline = ''; }, 500);
-                return; // 先に進ませない
+                setTimeout(() => { spanElement.style.outline = '2px solid transparent'; }, 500);
+                return;
             }
 
             const part = svoc_selectionSteps[svoc_currentStep];
@@ -873,6 +878,13 @@
                 accordionPanel.style.maxHeight = accordionPanel.scrollHeight + "px";
             } else {
                 accordionPanel.style.maxHeight = null;
+            }
+        });
+
+        resetDataButton.addEventListener('click', () => {
+            if (confirm('すべての学習データ（「できた」「完璧」の状態）がリセットされます。よろしいですか？')) {
+                localStorage.removeItem('interactiveGrammarDrill_AllInOne');
+                location.reload();
             }
         });
 
